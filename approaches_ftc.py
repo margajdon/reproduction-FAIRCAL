@@ -6,7 +6,6 @@ import torch
 from torch import nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from approaches import naive
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
 
@@ -14,7 +13,7 @@ from calibration_methods import BinningCalibration
 from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
 
-from approaches import find_threshold
+from approaches import find_threshold, baseline
 
 
 def ftc(dataset_name, feature, db_fold, nbins, calibration_method):
@@ -77,7 +76,7 @@ def ftc(dataset_name, feature, db_fold, nbins, calibration_method):
     fair_scores = {'cal': scores_cal, 'test': scores_test}
     ground_truth = {'cal': ground_truth_cal, 'test': ground_truth_test}
 
-    confidences = naive(fair_scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1)
+    confidences = baseline(fair_scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1)
 
     return fair_scores, confidences, model
 

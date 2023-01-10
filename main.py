@@ -127,7 +127,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup
                     )
                 elif 'faircal' in approach:
-                    r = collect_measures_faircal_or_oracle(
+                    r = collect_measures_bmc_or_oracle(
                         ground_truth['test'],
                         scores['test'],
                         confidences['test'],
@@ -163,7 +163,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup
                     )
                 elif approach == 'oracle':
-                    r = collect_measures_faircal_or_oracle(
+                    r = collect_measures_bmc_or_oracle(
                         ground_truth['test'],
                         scores['test'],
                         confidences['test'][att],
