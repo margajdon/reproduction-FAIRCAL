@@ -1,6 +1,3 @@
-# Link to the report
-https://docs.google.com/document/d/172BKK_zkjzky6LoyJYCfVLKpHFyvvubFp4m65VZjEH4/edit?usp=sharing
-
 ## Bias Mitigation Through Calibration
 
 Code for the paper Bias Mitigation Through Calibration. 
