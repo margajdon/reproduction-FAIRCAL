@@ -279,6 +279,7 @@ def main():
                             )
                             np.save(saveto, data)
                         else:
+                            print(saveto)
                             print('skipped')
 
 
@@ -327,8 +328,9 @@ def file_name_save(dataset, feature, approach, calibration_method, nbins, n_clus
 
 def create_folder(path):
     try:
+        path = path.replace('//', '/')
         os.mkdir(path)
-    except OSError:
+    except OSError as e:
         return None
 
 if __name__ == '__main__':
