@@ -1,0 +1,43 @@
+Volume
+|   .gitignore
+|   approaches.py
+|   approaches_agenda.py
+|   approaches_ftc.py
+|   calibration_methods.py
+|   environment.yml
+|   generate_embeddings.py
+|   Main Figures.ipynb
+|   main.py
+|   output.txt
+|   README.md
+|   test.py
+|   utils.py
++---data
+|   \---bfw
+|       |   bfw.csv
+|       |
+|       \---faces-cropped
+|           +---asian_females
+|           +---asian_males
+|           +---bfw
+|           +---black_females
+|           +---black_males
+|           +---indian_females
+|           +---indian_males
+|           +---white_females
+|           \---white_males
++---embeddings
+|       facenet-webface_bfw_embeddings.csv
+|       facenet-webface_bfw_embeddings.pk
+|       facenet-webface_bfw_skipped.csv
+|       facenet-webface_bfw_skipped.pk
++---notebooks
+|   |   ICLR Images and Tables.ipynb
+|   |
+|   \---.ipynb_checkpoints
+\---__pycache__
+approaches.cpython-310.pyc
+approaches_agenda.cpython-310.pyc
+approaches_ftc.cpython-310.pyc
+calibration_methods.cpython-310.pyc
+utils.cpython-310.pyc
