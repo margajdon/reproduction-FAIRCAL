@@ -5,13 +5,14 @@ Volume
 |   approaches_ftc.py
 |   calibration_methods.py
 |   environment.yml
+|   filestructure.txt
 |   generate_embeddings.py
+|   generate_filestructure.py
 |   Main Figures.ipynb
 |   main.py
-|   output.txt
 |   README.md
-|   test.py
 |   utils.py
++---.ipynb_checkpoints
 +---data
 |   \---bfw
 |       |   bfw.csv
@@ -35,9 +36,3 @@ Volume
 |   |   ICLR Images and Tables.ipynb
 |   |
 |   \---.ipynb_checkpoints
-\---__pycache__
-approaches.cpython-310.pyc
-approaches_agenda.cpython-310.pyc
-approaches_ftc.cpython-310.pyc
-calibration_methods.cpython-310.pyc
-utils.cpython-310.pyc
