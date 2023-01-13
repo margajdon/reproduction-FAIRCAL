@@ -10,6 +10,7 @@ from sklearn.metrics import roc_curve
 from calibration_methods import BinningCalibration
 from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
+from dir_utils import prepare_dir
 
 
 def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1):
@@ -63,6 +64,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if not os.path.exists(saveto):
+        prepare_dir(saveto)
         np.save(saveto, {})
         embeddings = None
         if dataset_name == 'rfw':
