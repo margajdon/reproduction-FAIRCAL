@@ -157,6 +157,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	limit_images = args.limit
+	limit_images = 2000
 
 	model = None
 	if args.model == "facenet":
@@ -170,6 +171,7 @@ if __name__ == '__main__':
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
+
 
 	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
 	skipped_df.to_csv(f"{save_str}_skipped.csv")

@@ -199,7 +199,7 @@ parser.add_argument(
     '--dataset', type=str,
     help='name of dataset',
     choices=['rfw', 'bfw'],
-    default='rfw')
+    default='bfw')
 
 parser.add_argument(
     '--features', type=str,
@@ -265,7 +265,9 @@ def main():
                             print('         number clusters: %d' % n_cluster)
                         saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
                                                 fpr_thr)
+
                         if not os.path.exists(saveto):
+
                             np.save(saveto, {})
                             data = gather_results(
                                 dataset,
