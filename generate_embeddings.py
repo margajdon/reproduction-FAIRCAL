@@ -164,11 +164,15 @@ if __name__ == '__main__':
 	if args.dataset == "bfw":
 		embeddings_df, skipped_df = get_bfw_embeddings(model)
 
-	embeddings_df.to_csv(f"{embeddings_folder}/{args.model}_{args.dataset}_embeddings.csv")
-	skipped_df.to_csv(f"{embeddings_folder}/{args.model}_{args.dataset}_skipped.csv")
+	save_str = f"{embeddings_folder}/{args.model}_{args.dataset}"
+	if limit_images is not None:
+		save_str = save_str + f"_limited_{limit_images}"
 
-	pickle.dump(embeddings_df, open(f"{embeddings_folder}/{args.model}_{args.dataset}_embeddings.pk", "wb"))
-	pickle.dump(skipped_df, open(f"{embeddings_folder}/{args.model}_{args.dataset}_skipped.pk", "wb"))
+	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
+	skipped_df.to_csv(f"{save_str}_skipped.csv")
+
+	pickle.dump(embeddings_df, open(f"{save_str}_embeddings.pk", "wb"))
+	pickle.dump(skipped_df, open(f"{save_str}_skipped.pk", "wb"))
 
 	print("\n"+"*"*80)
 	print("Generated embeddings!")
@@ -176,9 +180,9 @@ if __name__ == '__main__':
 	print(f"Model: {args.model}, Dataset: {args.dataset}")
 	print()
 	print(f"Number of embeddings: {len(embeddings_df)}")
-	print(f"Saved to {embeddings_folder}/{args.model}_{args.dataset}_embeddings.[csv,pk]")
+	print(f"Saved to {save_str}_embeddings.[csv,pk]")
 	print()
 	print(f"Number skipped: {len(skipped_df)}")
-	print(f"Saved to {embeddings_folder}/{args.model}_{args.dataset}_skipped.[csv,pk]")
+	print(f"Saved to {save_str}_skipped.[csv,pk]")
 	print("*"*80)
 
