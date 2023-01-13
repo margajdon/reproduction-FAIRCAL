@@ -36,7 +36,7 @@ def get_img_names(dataset):
 	global limit_images
 
 	img_names = []
-	for path, subdirs, files in os.walk(data_folder+"/"+dataset):
+	for path, subdirs, files in os.walk(os.path.join(data_folder, dataset)):
 		for name in files:
 			if ".jpg" in name:
 				img_names.append(os.path.join(path, name))
@@ -65,7 +65,7 @@ def get_facenet_model(weights):
 
 def get_bfw_img_details(img_name):
 	""" Get details of image from single full-path image name"""
-	category, person, image_id = img_name.replace(".jpg", "").split("\\")[-3:]
+	category, person, image_id = img_name.replace(".jpg", "").split(os.sep)[-3:]
 	data = {"category":category, "person":person, "image_id":image_id, "img_path":img_name}
 	return data
 
@@ -82,6 +82,7 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	for item in skipped:
 		del imgs[item["img_path"]]
 
+	torch.cuda.empty_cache()
 	return imgs, skipped
 
 def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
@@ -101,6 +102,7 @@ def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
 	img_names = list(imgs.keys())
 	all_imgs = list(imgs.values())
 	del imgs
+	torch.cuda.empty_cache()
 
 	print("\nMTCNN pipeline time! (this might take a while...)")
 	mtcnn = MTCNN(image_size=img_size)
@@ -135,6 +137,7 @@ def get_bfw_embeddings(model):
 	imgs = torch.stack(imgs)
 	embeddings = model(imgs).detach().numpy()
 	del imgs
+	torch.cuda.empty_cache()
 
 	details = []
 	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
@@ -164,7 +167,7 @@ if __name__ == '__main__':
 	if args.dataset == "bfw":
 		embeddings_df, skipped_df = get_bfw_embeddings(model)
 
-	save_str = f"{embeddings_folder}/{args.model}_{args.dataset}"
+	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
 
