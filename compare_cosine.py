@@ -17,12 +17,15 @@ def main():
     given = given[(given['p1'].isin(embeddings['img_path'])) & (given['p2'].isin(embeddings['img_path']))]
     print(f'Considering {len(given)} pairs')
 
-    given['cos_sim'] = given.apply(lambda x: getEmbedding(x, embeddings), axis=1)
+    # Get cosine similarity
+    given['cos_sim'] = given.apply(lambda x: getCosSim(x, embeddings), axis=1)
+
+    # Calculate difference and report metrics
     difference = (given['cos_sim'] - given['facenet']).to_numpy()
     print(f'MAE: {round(np.abs(difference).mean(), 3)}')
     print(f'standard dev: {round(difference.std(), 3)}')
 
-def getEmbedding(row, embeddings):
+def getCosSim(row, embeddings):
     embedding_p1 = embeddings[embeddings['img_path'] == row['p1']]['embedding'].to_numpy()[0]
     embedding_p2 = embeddings[embeddings['img_path'] == row['p2']]['embedding'].to_numpy()[0]
     return cos_sim(embedding_p1, embedding_p2)
