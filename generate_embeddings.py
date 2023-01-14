@@ -10,6 +10,7 @@ import pickle
 
 data_folder = "data"
 embeddings_folder = "embeddings"
+limit_images = None # maximum images to process
 
 parser = argparse.ArgumentParser()
 
@@ -25,18 +26,24 @@ parser.add_argument(
 	choices=['facenet', 'facenet-webface', 'arcface'],
 	default='facenet')
 
+parser.add_argument(
+	'--limit', type=int,
+	help='maximum number of images to process',
+	default=None)
 
-def get_img_names(dataset, limit=10):
+def get_img_names(dataset):
 	""" Get all image names (with full paths) from dataset directory """
+	global limit_images
+
 	img_names = []
-	for path, subdirs, files in os.walk(data_folder+"/"+dataset):
+	for path, subdirs, files in os.walk(os.path.join(data_folder, dataset)):
 		for name in files:
 			if ".jpg" in name:
 				img_names.append(os.path.join(path, name))
 	
-	img_names = img_names[:limit]
+	img_names = img_names[:limit_images]
 	
-	print(f"{len(img_names)} images found! (manual limit = {limit})")
+	print(f"{len(img_names)} images found! (manual limit = {limit_images})")
 	return img_names
 
 def load_all_images(img_names):
@@ -58,7 +65,7 @@ def get_facenet_model(weights):
 
 def get_bfw_img_details(img_name):
 	""" Get details of image from single full-path image name"""
-	category, person, image_id = img_name.replace(".jpg", "").split("\\")[-3:]
+	category, person, image_id = img_name.replace(".jpg", "").split(os.sep)[-3:]
 	data = {"category":category, "person":person, "image_id":image_id, "img_path":img_name}
 	return data
 
@@ -75,6 +82,7 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	for item in skipped:
 		del imgs[item["img_path"]]
 
+	torch.cuda.empty_cache()
 	return imgs, skipped
 
 def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
@@ -90,8 +98,12 @@ def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
 	imgs, skipped_shape = filter_by_shape(imgs, filter_img_shape)
 	skipped += skipped_shape
 
-	# mtcnn preprocess 
+	# mtcnn preprocess
+	img_names = list(imgs.keys())
 	all_imgs = list(imgs.values())
+	del imgs
+	torch.cuda.empty_cache()
+
 	print("\nMTCNN pipeline time! (this might take a while...)")
 	mtcnn = MTCNN(image_size=img_size)
 	imgs_cropped = mtcnn(all_imgs)
@@ -99,7 +111,7 @@ def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
 	# remove images without faces
 	skipped_no_face = []
 	print("\nFiltering images based on face detection...")
-	for img_name, img in tqdm(zip(list(imgs.keys()), imgs_cropped), total=len(imgs_cropped)):
+	for img_name, img in tqdm(zip(img_names, imgs_cropped), total=len(imgs_cropped)):
 		if img is None:
 			skipped_no_face.append(dict())
 			skipped_no_face[-1].update(get_bfw_img_details(img_name))
@@ -109,12 +121,12 @@ def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
 
 	# cleaning up
 	for item in skipped_no_face:
-		del imgs[item["img_path"]]
+		img_names.remove(item["img_path"])
 
 	skipped = skipped_shape + skipped_no_face
 	skipped_df = pd.DataFrame(skipped)
 
-	return torch.stack(imgs_cropped), list(imgs.keys()), skipped_df
+	return imgs_cropped, img_names, skipped_df
 
 def get_bfw_embeddings(model):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
@@ -122,8 +134,11 @@ def get_bfw_embeddings(model):
 	imgs, img_names, skipped_df = preprocess_MTCNN("bfw", img_size=108, filter_img_shape=(108, 124))
 
 	print("\nGenerating embeddings...")
+	imgs = torch.stack(imgs)
 	embeddings = model(imgs).detach().numpy()
-	
+	del imgs
+	torch.cuda.empty_cache()
+
 	details = []
 	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
 		data = get_bfw_img_details(img_name)
@@ -136,12 +151,14 @@ def get_bfw_embeddings(model):
 		print(">", len(set(embeddings_df["img_path"].tolist()).intersection(skipped_df["img_path"].tolist())))
 		print(">", len(set(embeddings_df["img_path"].tolist()).union(skipped_df["img_path"].tolist()))-(len(skipped_df)+len(embeddings_df)))
 
-
 	return embeddings_df, skipped_df
 
 if __name__ == '__main__':
 	args = parser.parse_args()
 	
+	limit_images = args.limit
+	limit_images = 2000
+
 	model = None
 	if args.model == "facenet":
 		model = get_facenet_model("vggface2")
@@ -151,11 +168,16 @@ if __name__ == '__main__':
 	if args.dataset == "bfw":
 		embeddings_df, skipped_df = get_bfw_embeddings(model)
 
-	embeddings_df.to_csv(f"{embeddings_folder}/{args.model}_{args.dataset}_embeddings.csv")
-	skipped_df.to_csv(f"{embeddings_folder}/{args.model}_{args.dataset}_skipped.csv")
+	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
+	if limit_images is not None:
+		save_str = save_str + f"_limited_{limit_images}"
 
-	pickle.dump(embeddings_df, open(f"{embeddings_folder}/{args.model}_{args.dataset}_embeddings.pk", "wb"))
-	pickle.dump(skipped_df, open(f"{embeddings_folder}/{args.model}_{args.dataset}_skipped.pk", "wb"))
+
+	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
+	skipped_df.to_csv(f"{save_str}_skipped.csv")
+
+	pickle.dump(embeddings_df, open(f"{save_str}_embeddings.pk", "wb"))
+	pickle.dump(skipped_df, open(f"{save_str}_skipped.pk", "wb"))
 
 	print("\n"+"*"*80)
 	print("Generated embeddings!")
@@ -163,9 +185,9 @@ if __name__ == '__main__':
 	print(f"Model: {args.model}, Dataset: {args.dataset}")
 	print()
 	print(f"Number of embeddings: {len(embeddings_df)}")
-	print(f"Saved to {embeddings_folder}/{args.model}_{args.dataset}_embeddings.[csv,pk]")
+	print(f"Saved to {save_str}_embeddings.[csv,pk]")
 	print()
 	print(f"Number skipped: {len(skipped_df)}")
-	print(f"Saved to {embeddings_folder}/{args.model}_{args.dataset}_skipped.[csv,pk]")
+	print(f"Saved to {save_str}_skipped.[csv,pk]")
 	print("*"*80)
 

@@ -10,6 +10,7 @@ from approaches import cluster_methods
 from approaches_ftc import ftc
 from approaches_agenda import agenda
 from approaches import oracle
+from dir_utils import prepare_dir
 
 from utils import compute_scores
 from sklearn.metrics import roc_curve
@@ -199,7 +200,7 @@ parser.add_argument(
     '--dataset', type=str,
     help='name of dataset',
     choices=['rfw', 'bfw'],
-    default='rfw')
+    default='bfw')
 
 parser.add_argument(
     '--features', type=str,
@@ -266,6 +267,7 @@ def main():
                         saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
                                                 fpr_thr)
                         if not os.path.exists(saveto):
+                            prepare_dir(saveto)
                             np.save(saveto, {})
                             data = gather_results(
                                 dataset,
