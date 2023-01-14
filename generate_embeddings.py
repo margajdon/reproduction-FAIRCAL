@@ -6,6 +6,7 @@ import numpy as np
 from facenet_pytorch import MTCNN, InceptionResnetV1
 import pandas as pd
 import torch
+from torchvision import transforms
 import pickle
 
 data_folder = "data"
@@ -30,6 +31,14 @@ parser.add_argument(
 	'--limit', type=int,
 	help='maximum number of images to process',
 	default=None)
+
+parser.add_argument(
+	'--batch', type=int,
+	help='batch size of images passed to the model',
+	default=128)
+
+parser.add_argument('--mtcnn', action='store_true')
+parser.add_argument('--no-mtcnn', dest='mtcnn', action='store_false')
 
 def get_img_names(dataset):
 	""" Get all image names (with full paths) from dataset directory """
@@ -85,18 +94,21 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	torch.cuda.empty_cache()
 	return imgs, skipped
 
-def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
+def preprocess(dataset, use_MTCNN=True, filter_img_shape=None):
 	""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
 		and a data frame containing details of the skipped images. """
 
 	skipped = []
+	skipped_no_face = []
+	skipped_shape = []
 	# load images
 	img_names = get_img_names(dataset)
 	imgs = load_all_images(img_names)
 	
-	# filter by shape
-	imgs, skipped_shape = filter_by_shape(imgs, filter_img_shape)
-	skipped += skipped_shape
+	if filter_img_shape is not None:
+		# filter by shape
+		imgs, skipped_shape = filter_by_shape(imgs, filter_img_shape)
+		skipped += skipped_shape
 
 	# mtcnn preprocess
 	img_names = list(imgs.keys())
@@ -104,40 +116,63 @@ def preprocess_MTCNN(dataset, img_size=None, filter_img_shape=None):
 	del imgs
 	torch.cuda.empty_cache()
 
-	print("\nMTCNN pipeline time! (this might take a while...)")
-	mtcnn = MTCNN(image_size=img_size)
-	imgs_cropped = mtcnn(all_imgs)
+	imgs_processed = []
+	if use_MTCNN:
+		print("\nMTCNN pipeline time! (this might take a while...)")
+		mtcnn = MTCNN()
+		imgs_processed = mtcnn(all_imgs)
+		del all_imgs
+		torch.cuda.empty_cache()
+		# remove images without faces
+		print("\nFiltering images based on face detection...")
+		
+		for img_name, img in tqdm(zip(img_names, imgs_processed), total=len(imgs_processed)):
+			if img is None:
+				skipped_no_face.append(dict())
+				skipped_no_face[-1].update(get_bfw_img_details(img_name))
+				skipped_no_face[-1]["reason"] = "Could not find face"
+		
+		imgs_processed = [x for x in imgs_processed if x is not None]
 
-	# remove images without faces
-	skipped_no_face = []
-	print("\nFiltering images based on face detection...")
-	for img_name, img in tqdm(zip(img_names, imgs_cropped), total=len(imgs_cropped)):
-		if img is None:
-			skipped_no_face.append(dict())
-			skipped_no_face[-1].update(get_bfw_img_details(img_name))
-			skipped_no_face[-1]["reason"] = "Could not find face"
+		# cleaning up
+		for item in skipped_no_face:
+			img_names.remove(item["img_path"])
 
-	imgs_cropped = [x for x in imgs_cropped if x is not None]
-
-	# cleaning up
-	for item in skipped_no_face:
-		img_names.remove(item["img_path"])
+	else:
+		print("\nSkipping MTCNN...")
+		imgs_processed = []
+		for img in all_imgs:
+			imgs_processed.append(transforms.ToTensor()(img))
 
 	skipped = skipped_shape + skipped_no_face
 	skipped_df = pd.DataFrame(skipped)
 
-	return imgs_cropped, img_names, skipped_df
+	return imgs_processed, img_names, skipped_df
 
-def get_bfw_embeddings(model):
+def batch(iterable, n=1):
+	# https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
+
+def get_bfw_embeddings(model, batch_size, use_MTCNN):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
-	imgs, img_names, skipped_df = preprocess_MTCNN("bfw", img_size=108, filter_img_shape=(108, 124))
+	imgs, img_names, skipped_df = preprocess("bfw", use_MTCNN=use_MTCNN, filter_img_shape=(108, 124))
 
 	print("\nGenerating embeddings...")
-	imgs = torch.stack(imgs)
-	embeddings = model(imgs).detach().numpy()
-	del imgs
-	torch.cuda.empty_cache()
+	
+	embeddings = None
+	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
+		img_batch = torch.stack(img_batch)
+		if embeddings is None:
+			embeddings = model(img_batch).detach().numpy()
+		else:
+			embeddings = np.vstack([embeddings, model(img_batch).detach().numpy()])
+		
+		del img_batch
+		torch.cuda.empty_cache()
+
 
 	details = []
 	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
@@ -157,7 +192,6 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	
 	limit_images = args.limit
-	limit_images = 2000
 
 	model = None
 	if args.model == "facenet":
@@ -166,12 +200,11 @@ if __name__ == '__main__':
 		model = get_facenet_model("casia-webface")
 	
 	if args.dataset == "bfw":
-		embeddings_df, skipped_df = get_bfw_embeddings(model)
+		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
-
 
 	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
 	skipped_df.to_csv(f"{save_str}_skipped.csv")
