@@ -10,6 +10,7 @@ from approaches import cluster_methods
 from approaches_ftc import ftc
 from approaches_agenda import agenda
 from approaches import oracle
+from dir_utils import prepare_dir
 
 from utils import compute_scores
 from sklearn.metrics import roc_curve
@@ -265,9 +266,8 @@ def main():
                             print('         number clusters: %d' % n_cluster)
                         saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
                                                 fpr_thr)
-
                         if not os.path.exists(saveto):
-
+                            prepare_dir(saveto)
                             np.save(saveto, {})
                             data = gather_results(
                                 dataset,
