@@ -200,7 +200,6 @@ if __name__ == '__main__':
 		model = get_facenet_model("casia-webface")
 	
 	if args.dataset == "bfw":
-		print(args.mtcnn, type(args.mtcnn))
 		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
