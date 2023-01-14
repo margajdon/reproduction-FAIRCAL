@@ -179,7 +179,7 @@ def get_bfw_embeddings(model, batch_size, use_MTCNN, device):
 		torch.cuda.empty_cache()
 
 	details = []
-	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
+	for img_name, embedding in zip(img_names, embeddings):
 		data = get_bfw_img_details(img_name)
 		data["embedding"] = embedding
 		details.append(data)
