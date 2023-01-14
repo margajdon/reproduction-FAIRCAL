@@ -9,6 +9,8 @@ import torch
 from torchvision import transforms
 import pickle
 
+import time
+
 data_folder = "data"
 embeddings_folder = "embeddings"
 limit_images = None # maximum images to process
@@ -40,6 +42,8 @@ parser.add_argument(
 parser.add_argument('--mtcnn', action='store_true')
 parser.add_argument('--no-mtcnn', dest='mtcnn', action='store_false')
 
+parser.add_argument('--cpu', action='store_true')
+
 def get_img_names(dataset):
 	""" Get all image names (with full paths) from dataset directory """
 	global limit_images
@@ -69,7 +73,7 @@ def load_all_images(img_names):
 
 def get_facenet_model(weights):
 	""" Get pretrained facenet model """
-	resnet = InceptionResnetV1(pretrained=weights).eval()
+	resnet = InceptionResnetV1(pretrained=weights, ).eval()
 	return resnet
 
 def get_bfw_img_details(img_name):
@@ -94,7 +98,7 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	torch.cuda.empty_cache()
 	return imgs, skipped
 
-def preprocess(dataset, use_MTCNN=True, filter_img_shape=None):
+def preprocess(dataset, device, use_MTCNN=True, filter_img_shape=None):
 	""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
 		and a data frame containing details of the skipped images. """
 
@@ -119,7 +123,7 @@ def preprocess(dataset, use_MTCNN=True, filter_img_shape=None):
 	imgs_processed = []
 	if use_MTCNN:
 		print("\nMTCNN pipeline time! (this might take a while...)")
-		mtcnn = MTCNN()
+		mtcnn = MTCNN(device=device)
 		imgs_processed = mtcnn(all_imgs)
 		del all_imgs
 		torch.cuda.empty_cache()
@@ -142,7 +146,7 @@ def preprocess(dataset, use_MTCNN=True, filter_img_shape=None):
 		print("\nSkipping MTCNN...")
 		imgs_processed = []
 		for img in all_imgs:
-			imgs_processed.append(transforms.ToTensor()(img))
+			imgs_processed.append(transforms.ToTensor()(img).to(device))
 
 	skipped = skipped_shape + skipped_no_face
 	skipped_df = pd.DataFrame(skipped)
@@ -155,24 +159,24 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
-def get_bfw_embeddings(model, batch_size, use_MTCNN):
+def get_bfw_embeddings(model, batch_size, use_MTCNN, device):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
-	imgs, img_names, skipped_df = preprocess("bfw", use_MTCNN=use_MTCNN, filter_img_shape=(108, 124))
+	imgs, img_names, skipped_df = preprocess("bfw", device, use_MTCNN=use_MTCNN, filter_img_shape=(108, 124))
 
 	print("\nGenerating embeddings...")
 	
+	# Getting these embeddings to cuda gives only slow down
 	embeddings = None
 	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
 		img_batch = torch.stack(img_batch)
 		if embeddings is None:
-			embeddings = model(img_batch).detach().numpy()
+			embeddings = model(img_batch.to(device)).cpu().detach().numpy()
 		else:
-			embeddings = np.vstack([embeddings, model(img_batch).detach().numpy()])
+			embeddings = np.vstack([embeddings, model(img_batch.to(device)).cpu().detach().numpy()])
 		
 		del img_batch
 		torch.cuda.empty_cache()
-
 
 	details = []
 	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
@@ -189,9 +193,16 @@ def get_bfw_embeddings(model, batch_size, use_MTCNN):
 	return embeddings_df, skipped_df
 
 if __name__ == '__main__':
+	start = time.time()
 	args = parser.parse_args()
 	
 	limit_images = args.limit
+
+	if args.cpu:
+		device = torch.device("cpu")
+	else:
+		device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+	print(f'Using device {device}')
 
 	model = None
 	if args.model == "facenet":
@@ -199,8 +210,10 @@ if __name__ == '__main__':
 	if args.model == "facenet-webface":
 		model = get_facenet_model("casia-webface")
 	
+	model = model.to(device)
+
 	if args.dataset == "bfw":
-		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn)
+		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn, device)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
@@ -222,5 +235,6 @@ if __name__ == '__main__':
 	print()
 	print(f"Number skipped: {len(skipped_df)}")
 	print(f"Saved to {save_str}_skipped.[csv,pk]")
+	print(f'Time: {round(time.time() - start, 3)}')
 	print("*"*80)
 
