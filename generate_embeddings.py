@@ -219,10 +219,12 @@ def preprocess(imgs, img_prep, filter_img_shape=None):
 	return imgs_processed, img_names, skipped_df
 
 def batch(iterable, n=1):
-	# https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
-    l = len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx:min(ndx + n, l)]
+	"""
+	https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+	"""
+	l = len(iterable)
+	for ndx in range(0, l, n):
+		yield iterable[ndx:min(ndx + n, l)]
 
 def facenet_embedding_loop(model_str, imgs, batch_size, device):
 	if model_str == "facenet":
