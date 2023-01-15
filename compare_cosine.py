@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 def main():
     # Load data
     embeddings = pickle.load(open('./embeddings/facenet_bfw_embeddings.pk', 'rb'))[['img_path', 'embedding']]
-    given = pd.read_csv('./data/bfw/bfw.csv')[['p1', 'p2', 'facenet']]
+    given = pd.read_csv('./data/bfw/bfw.csv')[['label', 'p1', 'p2', 'facenet']]
     print('Total reference cosine pairs:', len(given))
 
     # Make sure both dfs have same formatted paths
@@ -38,7 +38,11 @@ def main():
     print(f'Std: {std}')
     print(f'Linear corr: {corr}')
     
-    plt.hist(difference, bins=40)
+    difference_same = (given[given["label"]==1]['cos_sim'] - given[given["label"]==1]['facenet']).to_numpy()
+    difference_diff = (given[given["label"]==0]['cos_sim'] - given[given["label"]==0]['facenet']).to_numpy()
+    
+    plt.hist(difference_same, bins=40, alpha=0.7)
+    plt.hist(difference_diff, bins=40, alpha=0.7)
     plt.plot([],[],' ', label=f'n={len(difference)}\nMean={mean}\nStd={std}\nCorr={corr}')
     plt.xlabel("predicted - reference")
     plt.ylabel("frequency")
