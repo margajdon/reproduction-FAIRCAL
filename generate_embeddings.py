@@ -157,18 +157,9 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
-def get_embeddings(dataset, model, batch_size, use_MTCNN, device):
+def get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
-	filter_img_shape = None
-	if dataset == "bfw":
-		filter_img_shape = (108,126)
-	elif dataset == "rfw":
-		filter_img_shape = (400,400)
-
-	# load images
-	img_names = get_img_names(dataset)
-	imgs = load_all_images(img_names)
 
 	imgs, img_names, skipped_df = preprocess(img_names, imgs, device, use_MTCNN=use_MTCNN, filter_img_shape=filter_img_shape)
 
@@ -204,6 +195,19 @@ def get_embeddings(dataset, model, batch_size, use_MTCNN, device):
 def imcremental_get_embeddings(dataset, model, batch_size, use_MTCNN, device):
 	pass
 
+def get_embeddings_wrapper(dataset, model, batch_size, use_MTCNN, device):
+	# load images
+	img_names = get_img_names(dataset)
+	imgs = load_all_images(img_names)
+	filter_img_shape = None
+	
+	if dataset == "bfw":
+		filter_img_shape = (108,126)
+	elif dataset == "rfw":
+		filter_img_shape = (400,400)
+
+	return get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+
 if __name__ == '__main__':
 	start = time.time()
 	args = parser.parse_args()
@@ -224,7 +228,7 @@ if __name__ == '__main__':
 	
 	model = model.to(device)
 
-	embeddings_df, skipped_df = get_embeddings(args.dataset, model, args.batch, args.mtcnn, device)
+	embeddings_df, skipped_df = get_embeddings_wrapper(args.dataset, model, args.batch, args.mtcnn, device)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
