@@ -41,6 +41,11 @@ parser.add_argument(
 	help='batch size of images passed to the model',
 	default=128)
 
+parser.add_argument(
+	'--incremental', type=int,
+	help='batch size of images loaded to RAM',
+	default=None)
+
 parser.add_argument('--mtcnn', action='store_true')
 parser.add_argument('--no-mtcnn', dest='mtcnn', action='store_false')
 
@@ -100,16 +105,13 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	torch.cuda.empty_cache()
 	return imgs, skipped
 
-def preprocess(dataset, device, use_MTCNN=True, filter_img_shape=None):
+def preprocess(img_names, imgs, device, use_MTCNN=True, filter_img_shape=None):
 	""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
 		and a data frame containing details of the skipped images. """
 
 	skipped = []
 	skipped_no_face = []
 	skipped_shape = []
-	# load images
-	img_names = get_img_names(dataset)
-	imgs = load_all_images(img_names)
 	
 	if filter_img_shape is not None:
 		# filter by shape
@@ -121,7 +123,6 @@ def preprocess(dataset, device, use_MTCNN=True, filter_img_shape=None):
 	all_imgs = list(imgs.values())
 	del imgs
 	torch.cuda.empty_cache()
-
 	imgs_processed = []
 	if use_MTCNN:
 		print("\nMTCNN pipeline time! (this might take a while...)")
@@ -161,12 +162,14 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
-def get_bfw_embeddings(model, batch_size, use_MTCNN, device):
+def get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
-	imgs, img_names, skipped_df = preprocess("bfw", device, use_MTCNN=use_MTCNN, filter_img_shape=(108, 124))
+
+	imgs, img_names, skipped_df = preprocess(img_names, imgs, device, use_MTCNN=use_MTCNN, filter_img_shape=filter_img_shape)
 
 	print("\nGenerating embeddings...")
+	print("Input image shape: ", imgs[0].shape)
 	
 	# Getting these embeddings to cuda gives only slow down
 	embeddings = None
@@ -194,6 +197,48 @@ def get_bfw_embeddings(model, batch_size, use_MTCNN, device):
 
 	return embeddings_df, skipped_df
 
+def get_embeddings_wrapper(dataset, model, batch_size, use_MTCNN, device, incremental_load=None):
+	img_names = get_img_names(dataset)
+	print(f"Total number of images in dataset:", len(img_names))
+	if dataset == "bfw":
+		filter_img_shape = (108,126)
+	elif dataset == "rfw":
+		filter_img_shape = (400,400)
+
+	embeddings, skipped = None, None
+
+	if incremental_load is None:
+		imgs = load_all_images(img_names)
+		return get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+
+	elif isinstance(incremental_load, int):
+		total_batches = int(np.ceil(len(img_names)/incremental_load))
+		batch_n = 1
+		print(f"\nIncrementally loading images (batch_size={incremental_load}, batches={total_batches})")
+		for img_name_batch in batch(img_names, incremental_load):
+			print(f"> Batch {batch_n}/{total_batches}")
+			imgs = load_all_images(img_name_batch)
+			tmp_embeddings, tmp_skipped = get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+			
+			if embeddings is None:
+				embeddings =  tmp_embeddings.copy()
+				skipped = tmp_skipped.copy()
+			else:
+				embeddings = pd.concat([embeddings, tmp_embeddings.copy()], ignore_index=True)
+				skipped = pd.concat([skipped, tmp_skipped.copy()], ignore_index=True)
+			
+			del tmp_embeddings
+			del tmp_skipped
+			del imgs
+			torch.cuda.empty_cache()
+
+			batch_n += 1
+
+	embeddings = embeddings.reset_index(drop=True)
+	skipped = skipped.reset_index(drop=True)
+	
+	return embeddings, skipped
+
 if __name__ == '__main__':
 	start = time.time()
 	args = parser.parse_args()
@@ -214,8 +259,12 @@ if __name__ == '__main__':
 	
 	model = model.to(device)
 
-	if args.dataset == "bfw":
-		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn, device)
+	embeddings_df, skipped_df = get_embeddings_wrapper(args.dataset, 
+													   model, 
+													   args.batch, 
+													   args.mtcnn, 
+													   device, 
+													   args.incremental)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
