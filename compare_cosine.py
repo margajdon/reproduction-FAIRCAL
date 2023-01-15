@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 def main():
     # Load data
-    embeddings = pickle.load(open('./embeddings/facenet-webface_bfw_embeddings.pk', 'rb'))[['img_path', 'embedding']]
+    embeddings = pickle.load(open('./embeddings/facenet_bfw_embeddings.pk', 'rb'))[['img_path', 'embedding']]
     given = pd.read_csv('./data/bfw/bfw.csv')[['p1', 'p2', 'facenet']]
     print('Total reference cosine pairs:', len(given))
 
@@ -34,7 +34,7 @@ def main():
     print(f'Std: {round(difference.std(), 3)}')
     print(f'Linear corr: {round(given[["cos_sim","facenet"]].corr()["cos_sim"]["facenet"], 3)}')
     plt.hist(difference, bins=len(given)//10)
-    plt.title("Difference (predicted-reference) cosine sim")
+    plt.title("Difference (predicted-reference) cosine similarity")
     plt.show()
 
 def getCosSim(row, embeddings):
