@@ -41,6 +41,11 @@ parser.add_argument(
 	help='batch size of images passed to the model',
 	default=128)
 
+parser.add_argument(
+	'--incremental', type=int,
+	help='batch size of images loaded to RAM',
+	default=None)
+
 parser.add_argument('--mtcnn', action='store_true')
 parser.add_argument('--no-mtcnn', dest='mtcnn', action='store_false')
 
@@ -192,21 +197,47 @@ def get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter
 
 	return embeddings_df, skipped_df
 
-def imcremental_get_embeddings(dataset, model, batch_size, use_MTCNN, device):
-	pass
-
-def get_embeddings_wrapper(dataset, model, batch_size, use_MTCNN, device):
-	# load images
+def get_embeddings_wrapper(dataset, model, batch_size, use_MTCNN, device, incremental_load=None):
 	img_names = get_img_names(dataset)
-	imgs = load_all_images(img_names)
-	filter_img_shape = None
-	
+	print(f"Total number of images in dataset:", len(img_names))
 	if dataset == "bfw":
 		filter_img_shape = (108,126)
 	elif dataset == "rfw":
 		filter_img_shape = (400,400)
 
-	return get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+	embeddings, skipped = None, None
+
+	if incremental_load is None:
+		imgs = load_all_images(img_names)
+		return get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+
+	elif isinstance(incremental_load, int):
+		total_batches = int(np.ceil(len(img_names)/incremental_load))
+		batch_n = 1
+		print(f"\nIncrementally loading images (batch_size={incremental_load}, batches={total_batches})")
+		for img_name_batch in batch(img_names, incremental_load):
+			print(f"> Batch {batch_n}/{total_batches}")
+			imgs = load_all_images(img_name_batch)
+			tmp_embeddings, tmp_skipped = get_embeddings(img_names, imgs, model, batch_size, use_MTCNN, device, filter_img_shape)
+			
+			if embeddings is None:
+				embeddings =  tmp_embeddings.copy()
+				skipped = tmp_skipped.copy()
+			else:
+				embeddings = pd.concat([embeddings, tmp_embeddings.copy()], ignore_index=True)
+				skipped = pd.concat([skipped, tmp_skipped.copy()], ignore_index=True)
+			
+			del tmp_embeddings
+			del tmp_skipped
+			del imgs
+			torch.cuda.empty_cache()
+
+			batch_n += 1
+
+	embeddings = embeddings.reset_index(drop=True)
+	skipped = skipped.reset_index(drop=True)
+	
+	return embeddings, skipped
 
 if __name__ == '__main__':
 	start = time.time()
@@ -228,7 +259,12 @@ if __name__ == '__main__':
 	
 	model = model.to(device)
 
-	embeddings_df, skipped_df = get_embeddings_wrapper(args.dataset, model, args.batch, args.mtcnn, device)
+	embeddings_df, skipped_df = get_embeddings_wrapper(args.dataset, 
+													   model, 
+													   args.batch, 
+													   args.mtcnn, 
+													   device, 
+													   args.incremental)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
