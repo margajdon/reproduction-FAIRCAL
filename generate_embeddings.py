@@ -273,6 +273,12 @@ if __name__ == '__main__':
 
 	args = parser.parse_args()
 	limit_images = args.limit
+
+	args.limit = 50
+	args.model = 'arcface'
+	args.img_prep = 'arcface'
+	args.dataset = 'bfw'
+	args.batch = 256
 	
 	if args.dataset == "bfw":
 		print((args.model, args.batch, args.img_prep))
