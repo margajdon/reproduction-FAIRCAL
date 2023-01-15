@@ -201,7 +201,7 @@ def get_embeddings_wrapper(dataset, model, batch_size, use_MTCNN, device, increm
 	img_names = get_img_names(dataset)
 	print(f"Total number of images in dataset:", len(img_names))
 	if dataset == "bfw":
-		filter_img_shape = (108,126)
+		filter_img_shape = (108,124)
 	elif dataset == "rfw":
 		filter_img_shape = (400,400)
 

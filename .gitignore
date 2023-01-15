@@ -4,3 +4,7 @@ __pycache__/
 embeddings/
 experiments/
 output/
+mtcnn-model/
+player1.jpg
+player2.jpg
+resnet100.onnx
