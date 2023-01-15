@@ -224,20 +224,21 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
-def facenet_embedding_loop(model_str, imgs, batch_size):
+def facenet_embedding_loop(model_str, imgs, batch_size, device):
 	if model_str == "facenet":
 		model = get_facenet_model("vggface2")
 	elif model_str == "facenet-webface":
 		model = get_facenet_model("casia-webface")
 	else:
 		raise ValueError('Invalid model_str value!')
+	model.to(device)
 	embedding_list = []
 	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
 		img_batch = torch.stack(img_batch)
 		embedding_list.append(model(img_batch).detach().numpy())
 	return np.vstack(embedding_list)
 
-def arcface_embedding_loop(model_str, imgs, batch_size):
+def arcface_embedding_loop(model_str, imgs, batch_size, device):
 	model = get_arcface_model()
 	embedding_list = []
 	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
@@ -248,21 +249,24 @@ def arcface_embedding_loop(model_str, imgs, batch_size):
 		embedding_list.append(model.get_outputs()[0])
 	return np.vstack(embedding_list)
 
+def get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device):
 
-def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, incremental_load=None):
-	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
-		and details of skipped images. """
-
-	imgs = load_images(dataset)
-	imgs, img_names, skipped_df = preprocess(imgs, img_prep, filter_img_shape=(108, 124))
-
-	print("\nGenerating embeddings...")
+	filter_img_shape_map = {
+		"bfw": (108, 126),
+		"rfw": (400, 400)
+	}
 	embedding_func = {
 		'facenet': facenet_embedding_loop,
 		'facenet-webface': facenet_embedding_loop,
 		'arcface': arcface_embedding_loop,
 	}
-	embeddings = embedding_func[model_str](model_str, imgs, batch_size)
+	imgs = load_all_images(img_names)
+	imgs, img_names, skipped_df = preprocess(imgs, img_prep, filter_img_shape_map[dataset])
+
+	print("\nGenerating embeddings...")
+	print("Input image shape: ", imgs[0].shape)
+
+	embeddings = embedding_func[model_str](model_str, imgs, batch_size, device)
 
 	details = []
 	for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
@@ -275,6 +279,31 @@ def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, inc
 		print("\nDEBUG: Both of following should be zero!")
 		print(">", len(set(embeddings_df["img_path"].tolist()).intersection(skipped_df["img_path"].tolist())))
 		print(">", len(set(embeddings_df["img_path"].tolist()).union(skipped_df["img_path"].tolist()))-(len(skipped_df)+len(embeddings_df)))
+
+	return embeddings_df, skipped_df
+
+def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, incremental_load=None):
+	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
+		and details of skipped images. """
+
+	img_names = get_img_names(dataset)
+
+	if not incremental_load:
+		incremental_load = len(img_names)
+
+	total_batches = int(np.ceil(len(img_names)/incremental_load))
+
+	edf_list = []
+	sdf_list = []
+
+	for i, img_name_batch in enumerate(batch(img_names, incremental_load)):
+		print(f"> Batch {i + 1}/{total_batches}")
+		embeddings_dft, skipped_dft = get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device)
+		edf_list.append(embeddings_dft)
+		sdf_list.append(skipped_dft)
+
+	embeddings_df = pd.concat(edf_list, ignore_index=True)
+	skipped_df = pd.concat(sdf_list, ignore_index=True)
 
 	return embeddings_df, skipped_df
 
@@ -300,7 +329,6 @@ if __name__ == '__main__':
 	embeddings_df, skipped_df = get_embeddings_wrapper(
 		args.dataset, args.model, args.batch, args.img_prep, device, args.incremental
 	)
-
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
