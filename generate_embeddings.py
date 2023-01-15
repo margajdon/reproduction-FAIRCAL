@@ -252,7 +252,7 @@ def arcface_embedding_loop(model_str, imgs, batch_size, device):
 def get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device):
 
 	filter_img_shape_map = {
-		"bfw": (108, 126),
+		"bfw": (108, 124),
 		"rfw": (400, 400)
 	}
 	embedding_func = {
