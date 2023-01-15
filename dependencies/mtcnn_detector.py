@@ -8,7 +8,7 @@ import math
 import cv2
 from multiprocessing import Pool
 from itertools import repeat
-from helper import nms, adjust_input, generate_bbox, detect_first_stage_warpper
+from dependencies.helper import nms, adjust_input, generate_bbox, detect_first_stage_warpper
 try:
     from itertools import izip as zip
 except ImportError:

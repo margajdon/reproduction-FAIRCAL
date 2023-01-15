@@ -134,6 +134,7 @@ def mtcnn_img_prep(all_imgs, img_names, skipped_no_face):
 
 def arcface_img_prep(all_imgs, img_names, skipped_no_face):
 	print("\nArcface pipeline prep! (this might take a while...)")
+	get_arcface_model()
 	# Configure face detector
 	det_threshold = [0.6, 0.7, 0.8]
 	mtcnn_path = os.path.join(os.path.dirname('__file__'), 'mtcnn-model')

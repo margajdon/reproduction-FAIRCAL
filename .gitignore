@@ -3,3 +3,9 @@ __pycache__/
 .idea/
 embeddings/
 experiments/
+player1.jpg
+player2.jpg
+resnet100.onnx
+mtcnn-model/
+
+
