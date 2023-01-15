@@ -100,16 +100,13 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	torch.cuda.empty_cache()
 	return imgs, skipped
 
-def preprocess(dataset, device, use_MTCNN=True, filter_img_shape=None):
+def preprocess(img_names, imgs, device, use_MTCNN=True, filter_img_shape=None):
 	""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
 		and a data frame containing details of the skipped images. """
 
 	skipped = []
 	skipped_no_face = []
 	skipped_shape = []
-	# load images
-	img_names = get_img_names(dataset)
-	imgs = load_all_images(img_names)
 	
 	if filter_img_shape is not None:
 		# filter by shape
@@ -169,7 +166,11 @@ def get_embeddings(dataset, model, batch_size, use_MTCNN, device):
 	elif dataset == "rfw":
 		filter_img_shape = (400,400)
 
-	imgs, img_names, skipped_df = preprocess(dataset, device, use_MTCNN=use_MTCNN, filter_img_shape=filter_img_shape)
+	# load images
+	img_names = get_img_names(dataset)
+	imgs = load_all_images(img_names)
+
+	imgs, img_names, skipped_df = preprocess(img_names, imgs, device, use_MTCNN=use_MTCNN, filter_img_shape=filter_img_shape)
 
 	print("\nGenerating embeddings...")
 	print("Input image shape: ", imgs[0].shape)
@@ -200,6 +201,8 @@ def get_embeddings(dataset, model, batch_size, use_MTCNN, device):
 
 	return embeddings_df, skipped_df
 
+def imcremental_get_embeddings(dataset, model, batch_size, use_MTCNN, device):
+	pass
 
 if __name__ == '__main__':
 	start = time.time()
