@@ -18,7 +18,7 @@ def main():
     
     # Get only the images for which we have embeddings
     given = given[(given['p1'].isin(embeddings['img_path'])) & (given['p2'].isin(embeddings['img_path']))]
-    given = given.sample(1000)
+    given = given.sample(10000)
     print(f'Considering {len(given)} pairs')
 
     # Get cosine similarity
@@ -33,7 +33,7 @@ def main():
     print(f'Mean: {round(difference.mean(), 3)}')
     print(f'Std: {round(difference.std(), 3)}')
     print(f'Linear corr: {round(given[["cos_sim","facenet"]].corr()["cos_sim"]["facenet"], 3)}')
-    plt.hist(difference, bins=len(given)//10)
+    plt.hist(difference, bins=40)
     plt.title("Difference (predicted-reference) cosine similarity")
     plt.show()
 
