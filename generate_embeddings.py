@@ -237,7 +237,7 @@ def facenet_embedding_loop(model_str, imgs, batch_size, device):
 	embedding_list = []
 	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
 		img_batch = torch.stack(img_batch)
-		embedding_list.append(model(img_batch).detach().numpy())
+		embedding_list.append(model(img_batch.to(device)).cpu().detach().numpy())
 	return np.vstack(embedding_list)
 
 def arcface_embedding_loop(model_str, imgs, batch_size, device):
@@ -320,12 +320,6 @@ if __name__ == '__main__':
 	else:
 		device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 	print(f'Using device {device}')
-
-	model = None
-	if args.model == "facenet":
-		model = get_facenet_model("vggface2")
-	if args.model == "facenet-webface":
-		model = get_facenet_model("casia-webface")
 
 	print((args.model, args.batch, args.img_prep))
 	embeddings_df, skipped_df = get_embeddings_wrapper(
