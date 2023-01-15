@@ -1,6 +1,6 @@
 import os
 
-os.system("tree /a /f > filestructure.txt")
+os.system("tree /a > filestructure.txt")
 
 lines = open("filestructure.txt", "r").readlines()
 lines = lines[1:]

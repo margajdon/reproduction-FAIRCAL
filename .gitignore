@@ -7,5 +7,4 @@ player1.jpg
 player2.jpg
 resnet100.onnx
 mtcnn-model/
-
-
+output/

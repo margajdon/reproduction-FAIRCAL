@@ -1,14 +1,17 @@
 import argparse
 import os
+import time
+import pickle
+
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from PIL import Image
-import numpy as np
-from facenet_pytorch import MTCNN, InceptionResnetV1
-import pandas as pd
 import torch
 from torchvision import transforms
 import pickle
 import mxnet as mx
+from facenet_pytorch import MTCNN, InceptionResnetV1
 
 from arcface_model import get_arcface_model, get_input
 from dependencies.mtcnn_detector import MtcnnDetector
@@ -45,11 +48,17 @@ parser.add_argument(
 	default=128)
 
 parser.add_argument(
+	'--incremental', type=int,
+	help='batch size of images loaded to RAM',
+	default=None)
+
+parser.add_argument(
 	'--img_prep', type=str,
 	help='preprocessing type applied to the images',
 	choices=['mtcnn', 'vanilla'],
 	default='mtcnn')
 
+parser.add_argument('--cpu', action='store_true')
 
 def get_img_names(dataset):
 	""" Get all image names (with full paths) from dataset directory """
@@ -80,7 +89,7 @@ def load_all_images(img_names):
 
 def get_facenet_model(weights):
 	""" Get pretrained facenet model """
-	resnet = InceptionResnetV1(pretrained=weights).eval()
+	resnet = InceptionResnetV1(pretrained=weights, ).eval()
 	return resnet
 
 def get_bfw_img_details(img_name):
@@ -179,7 +188,7 @@ def preprocess(imgs, img_prep, filter_img_shape=None):
 	skipped = []
 	skipped_no_face = []
 	skipped_shape = []
-	
+
 	if filter_img_shape:
 		# filter by shape
 		imgs, skipped_shape = filter_by_shape(imgs, filter_img_shape)
@@ -240,11 +249,11 @@ def arcface_embedding_loop(model_str, imgs, batch_size):
 	return np.vstack(embedding_list)
 
 
-def get_bfw_embeddings(model_str, batch_size, img_prep):
+def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, incremental_load=None):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
 
-	imgs = load_images("bfw")
+	imgs = load_images(dataset)
 	imgs, img_names, skipped_df = preprocess(imgs, img_prep, filter_img_shape=(108, 124))
 
 	print("\nGenerating embeddings...")
@@ -269,21 +278,28 @@ def get_bfw_embeddings(model_str, batch_size, img_prep):
 
 	return embeddings_df, skipped_df
 
-
 if __name__ == '__main__':
-
+	start = time.time()
 	args = parser.parse_args()
+	
 	limit_images = args.limit
 
-	args.limit = 50
-	args.model = 'arcface'
-	args.img_prep = 'arcface'
-	args.dataset = 'bfw'
-	args.batch = 256
-	
-	if args.dataset == "bfw":
-		print((args.model, args.batch, args.img_prep))
-		embeddings_df, skipped_df = get_bfw_embeddings(args.model, args.batch, args.img_prep)
+	if args.cpu:
+		device = torch.device("cpu")
+	else:
+		device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+	print(f'Using device {device}')
+
+	model = None
+	if args.model == "facenet":
+		model = get_facenet_model("vggface2")
+	if args.model == "facenet-webface":
+		model = get_facenet_model("casia-webface")
+
+	print((args.model, args.batch, args.img_prep))
+	embeddings_df, skipped_df = get_embeddings_wrapper(
+		args.dataset, args.model, args.batch, args.img_prep, device, args.incremental
+	)
 
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
@@ -291,7 +307,6 @@ if __name__ == '__main__':
 		save_str = save_str + f"_limited_{limit_images}"
 
 	prepare_dir(save_str)
-
 	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
 	skipped_df.to_csv(f"{save_str}_skipped.csv")
 
@@ -308,6 +323,6 @@ if __name__ == '__main__':
 	print()
 	print(f"Number skipped: {len(skipped_df)}")
 	print(f"Saved to {save_str}_skipped.[csv,pk]")
+	print(f'Time: {round(time.time() - start, 3)}s')
 	print("*"*80)
-
 
