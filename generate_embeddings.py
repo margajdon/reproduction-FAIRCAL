@@ -56,7 +56,7 @@ parser.add_argument(
 	'--img_prep', type=str,
 	help='preprocessing type applied to the images',
 	choices=['mtcnn', 'vanilla'],
-	default='mtcnn')
+	default='vanilla')
 
 parser.add_argument('--cpu', action='store_true')
 
@@ -300,7 +300,7 @@ def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, inc
 
 	for i, img_name_batch in enumerate(batch(img_names, incremental_load)):
 		print(f"> Batch {i + 1}/{total_batches}")
-		embeddings_dft, skipped_dft = get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device)
+		embeddings_dft, skipped_dft = get_embeddings(dataset, img_name_batch, img_prep, batch_size, model_str, device)
 		edf_list.append(embeddings_dft)
 		sdf_list.append(skipped_dft)
 
