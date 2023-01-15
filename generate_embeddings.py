@@ -1,15 +1,17 @@
 import argparse
 import os
-from tqdm import tqdm
-from PIL import Image
-import numpy as np
-from facenet_pytorch import MTCNN, InceptionResnetV1
-import pandas as pd
-import torch
-from torchvision import transforms
+import time
 import pickle
 
-import time
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from PIL import Image
+import torch
+
+from torchvision import transforms
+from facenet_pytorch import MTCNN, InceptionResnetV1
+
 
 data_folder = "data"
 embeddings_folder = "embeddings"
@@ -235,6 +237,6 @@ if __name__ == '__main__':
 	print()
 	print(f"Number skipped: {len(skipped_df)}")
 	print(f"Saved to {save_str}_skipped.[csv,pk]")
-	print(f'Time: {round(time.time() - start, 3)}')
+	print(f'Time: {round(time.time() - start, 3)}s')
 	print("*"*80)
 
