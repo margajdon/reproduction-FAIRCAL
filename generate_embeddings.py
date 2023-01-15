@@ -121,7 +121,6 @@ def preprocess(dataset, device, use_MTCNN=True, filter_img_shape=None):
 	all_imgs = list(imgs.values())
 	del imgs
 	torch.cuda.empty_cache()
-
 	imgs_processed = []
 	if use_MTCNN:
 		print("\nMTCNN pipeline time! (this might take a while...)")
@@ -194,6 +193,39 @@ def get_bfw_embeddings(model, batch_size, use_MTCNN, device):
 
 	return embeddings_df, skipped_df
 
+def get_rfw_embeddings(model, batch_size, use_MTCNN, device):
+	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
+		and details of skipped images. """
+	imgs, img_names, skipped_df = preprocess("rfw", device, use_MTCNN=use_MTCNN, filter_img_shape=(400, 400))
+
+	print("\nGenerating embeddings...")
+	
+	# Getting these embeddings to cuda gives only slow down
+	embeddings = None
+	for img_batch in tqdm(batch(imgs, batch_size), total=np.ceil(len(imgs)/batch_size)):
+		img_batch = torch.stack(img_batch)
+		if embeddings is None:
+			embeddings = model(img_batch.to(device)).cpu().detach().numpy()
+		else:
+			embeddings = np.vstack([embeddings, model(img_batch.to(device)).cpu().detach().numpy()])
+		
+		del img_batch
+		torch.cuda.empty_cache()
+
+	details = []
+	for img_name, embedding in zip(img_names, embeddings):
+		data = get_bfw_img_details(img_name)
+		data["embedding"] = embedding
+		details.append(data)
+
+	embeddings_df = pd.DataFrame(details)
+	if len(skipped_df) > 0:
+		print("\nDEBUG: Both of following should be zero!")
+		print(">", len(set(embeddings_df["img_path"].tolist()).intersection(skipped_df["img_path"].tolist())))
+		print(">", len(set(embeddings_df["img_path"].tolist()).union(skipped_df["img_path"].tolist()))-(len(skipped_df)+len(embeddings_df)))
+
+	return embeddings_df, skipped_df
+
 if __name__ == '__main__':
 	start = time.time()
 	args = parser.parse_args()
@@ -216,6 +248,8 @@ if __name__ == '__main__':
 
 	if args.dataset == "bfw":
 		embeddings_df, skipped_df = get_bfw_embeddings(model, args.batch, args.mtcnn, device)
+	else:
+		embeddings_df, skipped_df = get_rfw_embeddings(model, args.batch, args.mtcnn, device)
 
 	save_str = os.path.join(embeddings_folder, f"{args.model}_{args.dataset}")
 	if limit_images is not None:
