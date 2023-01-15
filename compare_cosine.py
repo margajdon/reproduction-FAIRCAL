@@ -18,7 +18,7 @@ def main():
     
     # Get only the images for which we have embeddings
     given = given[(given['p1'].isin(embeddings['img_path'])) & (given['p2'].isin(embeddings['img_path']))]
-    given = given.sample(10000)
+    given = given.sample(20000)
     print(f'Considering {len(given)} pairs')
 
     # Get cosine similarity
@@ -29,12 +29,21 @@ def main():
 
     # Calculate difference and report metrics
     difference = (given['cos_sim'] - given['facenet']).to_numpy()
-    print("Difference (predicted-reference):")
-    print(f'Mean: {round(difference.mean(), 3)}')
-    print(f'Std: {round(difference.std(), 3)}')
-    print(f'Linear corr: {round(given[["cos_sim","facenet"]].corr()["cos_sim"]["facenet"], 3)}')
+    mean = round(difference.mean(), 3)
+    std = round(difference.std(), 3)
+    corr = round(given[["cos_sim","facenet"]].corr()["cos_sim"]["facenet"], 3)
+    
+    print("Comparing cosine similarity of photo-pair embeddings")
+    print(f'Mean: {mean}')
+    print(f'Std: {std}')
+    print(f'Linear corr: {corr}')
+    
     plt.hist(difference, bins=40)
-    plt.title("Difference (predicted-reference) cosine similarity")
+    plt.plot([],[],' ', label=f'n={len(difference)}\nMean={mean}\nStd={std}\nCorr={corr}')
+    plt.xlabel("predicted - reference")
+    plt.ylabel("frequency")
+    plt.legend(handletextpad=.0, handlelength=0)
+    plt.title("Comparison of cosine similarity of photo-pair embeddings")
     plt.show()
 
 def getCosSim(row, embeddings):
