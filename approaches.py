@@ -74,7 +74,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
     kmeans = KMeans(n_clusters=n_clusters)
-    kmeans.fit(embeddings)
+    kmeans.fit(embeddings[:5000])
     # np.save(saveto, kmeans)
     # else:
     #     while True:
@@ -322,8 +322,12 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
-        pb = tqdm(total=len(db))
+
+        cutOff = 5000
+        pb = tqdm(total=cutOff)
         for i in range(len(db)):
+            if i > 5000:
+                continue
             t = 0
             for path in ['path1', 'path2']:
                 key = db[path].iloc[i]
