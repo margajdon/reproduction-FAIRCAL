@@ -60,6 +60,7 @@ parser.add_argument(
 
 parser.add_argument('--cpu', action='store_true')
 
+
 def get_img_names(dataset):
 	""" Get all image names (with full paths) from dataset directory """
 	global limit_images
@@ -75,6 +76,7 @@ def get_img_names(dataset):
 	print(f"{len(img_names)} images found! (manual limit = {limit_images})")
 	return img_names
 
+
 def load_all_images(img_names):
 	""" Load all images specified in img_names as np array """
 	print("\nLoading images...")
@@ -87,16 +89,19 @@ def load_all_images(img_names):
 
 	return images
 
+
 def get_facenet_model(weights):
 	""" Get pretrained facenet model """
 	resnet = InceptionResnetV1(pretrained=weights, ).eval()
 	return resnet
+
 
 def get_bfw_img_details(img_name):
 	""" Get details of image from single full-path image name"""
 	category, person, image_id = img_name.replace(".jpg", "").split(os.sep)[-3:]
 	data = {"category": category, "person":person, "image_id": image_id, "img_path": img_name}
 	return data
+
 
 def filter_by_shape(imgs, filter_img_shape=None):
 	skipped = []
@@ -114,9 +119,11 @@ def filter_by_shape(imgs, filter_img_shape=None):
 	torch.cuda.empty_cache()
 	return imgs, skipped
 
+
 def load_images(dataset):
 	img_names = get_img_names(dataset)
 	return load_all_images(img_names)
+
 
 def mtcnn_img_prep(all_imgs, img_names, skipped_no_face):
 	print("\nMTCNN pipeline prep! (this might take a while...)")
@@ -140,6 +147,7 @@ def mtcnn_img_prep(all_imgs, img_names, skipped_no_face):
 		img_names.remove(item["img_path"])
 
 	return imgs_processed, img_names, skipped_no_face
+
 
 def arcface_img_prep(all_imgs, img_names, skipped_no_face):
 	print("\nArcface pipeline prep! (this might take a while...)")
@@ -171,6 +179,7 @@ def arcface_img_prep(all_imgs, img_names, skipped_no_face):
 		img_names.remove(item["img_path"])
 
 	return imgs_processed, img_names, skipped_no_face
+
 
 def vanilla_img_prep(all_imgs, img_names, skipped_no_face):
 	print("\nVanilla image prep...")
@@ -218,6 +227,7 @@ def preprocess(imgs, img_prep, filter_img_shape=None):
 
 	return imgs_processed, img_names, skipped_df
 
+
 def batch(iterable, n=1):
 	"""
 	https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
@@ -225,6 +235,7 @@ def batch(iterable, n=1):
 	l = len(iterable)
 	for ndx in range(0, l, n):
 		yield iterable[ndx:min(ndx + n, l)]
+
 
 def facenet_embedding_loop(model_str, imgs, batch_size, device):
 	if model_str == "facenet":
@@ -240,6 +251,7 @@ def facenet_embedding_loop(model_str, imgs, batch_size, device):
 		embedding_list.append(model(img_batch.to(device)).cpu().detach().numpy())
 	return np.vstack(embedding_list)
 
+
 def arcface_embedding_loop(model_str, imgs, batch_size, device):
 	model = get_arcface_model()
 	embedding_list = []
@@ -250,6 +262,7 @@ def arcface_embedding_loop(model_str, imgs, batch_size, device):
 		model.forward(db, is_train=False)
 		embedding_list.append(model.get_outputs()[0])
 	return np.vstack(embedding_list)
+
 
 def get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device):
 
@@ -284,6 +297,7 @@ def get_embeddings(dataset, img_names, img_prep, batch_size, model_str, device):
 
 	return embeddings_df, skipped_df
 
+
 def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, incremental_load=None):
 	""" Get embeddings for BFW dataset for a given model. Returns embeddings+details 
 		and details of skipped images. """
@@ -308,6 +322,7 @@ def get_embeddings_wrapper(dataset, model_str, batch_size, img_prep, device, inc
 	skipped_df = pd.concat(sdf_list, ignore_index=True)
 
 	return embeddings_df, skipped_df
+
 
 if __name__ == '__main__':
 	start = time.time()
