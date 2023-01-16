@@ -4,7 +4,6 @@ import os
 import argparse
 import torch
 
-
 from approaches import baseline
 from approaches import cluster_methods
 from approaches_ftc import ftc
@@ -232,7 +231,7 @@ def main():
         db = pd.read_csv('data/bfw/bfw.csv')
         nbins = 25
 
-    # create_folder(f"{experiments_folder}/{dataset}")
+    create_folder(f"{experiments_folder}/{dataset}")
 
     if args.features == 'all':
         features = ['facenet', 'facenet-webface', 'arcface']
@@ -246,19 +245,19 @@ def main():
         calibration_methods = ['binning', 'isotonic_regression', 'beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [200] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] n_clusters = 100 was used in the tables on page 8
+    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
             print('fpr_thr: %.0e' % fpr_thr)
             for feature in features:
-                # create_folder(f"{experiments_folder}/{dataset}/{feature}")
+                create_folder(f"{experiments_folder}/{dataset}/{feature}")
                 print('Feature: %s' % feature)
                 for approach in approaches:
-                    # create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
+                    create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
                     print('   Approach: %s' % approach)
                     for calibration_method in calibration_methods:
-                        # create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
+                        create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
                         print('      Calibration Method: %s' % calibration_method)
                         if 'faircal' in approach:
                             print('         number clusters: %d' % n_cluster)
@@ -267,8 +266,8 @@ def main():
                         saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
                                                 fpr_thr)
                         if not os.path.exists(saveto):
-                            # prepare_dir(saveto)
-                            # np.save(saveto, {})
+                            prepare_dir(saveto)
+                            np.save(saveto, {})
                             data = gather_results(
                                 dataset,
                                 db,
@@ -279,7 +278,7 @@ def main():
                                 approach,
                                 calibration_method
                             )
-                            # np.save(saveto, data)
+                            np.save(saveto, data)
                         else:
                             print(saveto)
                             print('skipped')
