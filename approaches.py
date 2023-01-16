@@ -3,6 +3,8 @@ import torch
 import pickle
 import os
 import time
+from tqdm import tqdm
+import pandas as pd
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
@@ -63,24 +65,24 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                     score_normalization, fpr):
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
-    if not os.path.exists(saveto):
-        prepare_dir(saveto)
-        np.save(saveto, {})
-        embeddings = None
-        if dataset_name == 'rfw':
-            embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
-        elif 'bfw' in dataset_name:
-            embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
-        kmeans = KMeans(n_clusters=n_clusters)
-        kmeans.fit(embeddings)
-        np.save(saveto, kmeans)
-    else:
-        while True:
-            kmeans = np.load(saveto, allow_pickle=True).item()
-            if type(kmeans) != dict:
-                break
-            print('Waiting for KMeans to be computed')
-            time.sleep(60)
+    # if not os.path.exists(saveto):
+    # prepare_dir(saveto)
+    # np.save(saveto, {})
+    embeddings = None
+    if dataset_name == 'rfw':
+        embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
+    elif 'bfw' in dataset_name:
+        embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
+    kmeans = KMeans(n_clusters=n_clusters)
+    kmeans.fit(embeddings)
+    # np.save(saveto, kmeans)
+    # else:
+    #     while True:
+    #         kmeans = np.load(saveto, allow_pickle=True).item()
+    #         if type(kmeans) != dict:
+    #             break
+    #         print('Waiting for KMeans to be computed')
+    #         time.sleep(60)
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
     elif 'bfw' in dataset_name:
@@ -217,14 +219,16 @@ def collect_embeddings_rfw(feature, db_cal):
 def collect_embeddings_bfw(feature, db_cal):
     # collect embeddings of all the images in the calibration set
     embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    file_names_visited = []
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
-    for path in ['path1', 'path2']:
-        file_names = db_cal[path].values
-        for file_name in file_names:
-            if file_name not in file_names_visited:
-                embeddings = np.concatenate((embeddings, temp[file_name].reshape(1, -1)))
-                file_names_visited.append(file_name)
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+
+    # Ensure temp and bfw.csv agree on the path structure
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+    temp['embedding'] = temp['embedding'].to_list()
+
+    file_names = pd.concat([db_cal['path1'], db_cal['path2']]).drop_duplicates()
+    embeddings = temp[temp['img_path'].isin(file_names)]['embedding'].to_numpy()
+    embeddings = np.vstack(embeddings)
 
     return embeddings
 
@@ -308,10 +312,17 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
         cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
 
     # collect scores and ground_truth per cluster for the calibration set
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+
+    # convert to dict to allow for efficient indexing
+    temp = temp.set_index('img_path')['embedding'].to_dict()
+
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
+        pb = tqdm(total=len(db))
         for i in range(len(db)):
             t = 0
             for path in ['path1', 'path2']:
@@ -319,9 +330,14 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
                 if feature == 'arcface':
                     i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
                 else:
-                    i_cluster = kmeans.predict(temp[key])[0]
+                    try:
+                        i_cluster = kmeans.predict(temp[key])[0]
+                    except:
+                        continue
 
                 cluster_scores[dataset][i, t] = i_cluster
                 t += 1
+            pb.update()
+        pb.close()
 
     return scores, ground_truth, clusters, cluster_scores
