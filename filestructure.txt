@@ -1,7 +1,7 @@
 Volume
 +---data
 |   +---bfw
-|   |   \---faces-cropped
+|   |   \---bfw-crop-aligned
 |   |       +---asian_females
 |   |       +---asian_males
 |   |       +---bfw

@@ -1,5 +1,33 @@
 import numpy as np
 from sklearn.metrics import roc_curve
+import os
+import torch
+
+
+def determine_device(cpu_bool):
+    if cpu_bool:
+        device = torch.device("cpu")
+    else:
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print(f'Using device {device}')
+    return device
+
+
+def prepare_dir(file_path):
+    dir_path = '/'.join(file_path.split('/')[:-1])
+    try:
+        os.makedirs(dir_path)
+    except FileExistsError:
+        pass
+
+
+def batch(iterable, n=1):
+    """
+	https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
+	"""
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
 
 
 def determine_edges(scores, nbins, indicesQ=False, score_min=-1, score_max=1):
