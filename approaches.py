@@ -215,10 +215,9 @@ def collect_embeddings_bfw(feature, db_cal):
     # collect embeddings of all the images in the calibration set
     embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
     temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
-
     # Ensure temp and bfw.csv agree on the path structure
     temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
-    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
     temp['embedding'] = temp['embedding'].to_list()
 
     file_names = pd.concat([db_cal['path1'], db_cal['path2']]).drop_duplicates()
@@ -309,7 +308,7 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
     # Process pickle file
     temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
     temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
-    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
 
     # Predict kmeans
     temp['i_cluster'] = kmeans.predict(np.vstack(temp['embedding'].to_numpy()))

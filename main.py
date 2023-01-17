@@ -9,7 +9,7 @@ from approaches import cluster_methods
 from approaches_ftc import ftc
 from approaches_agenda import agenda
 from approaches import oracle
-from dir_utils import prepare_dir
+from utils import prepare_dir
 
 from utils import compute_scores
 from sklearn.metrics import roc_curve
@@ -234,15 +234,6 @@ def main():
         nbins = 10
     elif 'bfw' in dataset:
         db = pd.read_csv('data/bfw/bfw.csv')
-        db = db.rename(columns={
-            'p1': 'path1',
-            'p2': 'path2',
-            'label': 'same',
-            'vgg2': 'facenet-webface',
-            'resnet50': 'facenet',
-            'senet50': 'arcface'
-        })
-        db['same'].replace([1, 0], [True, False])
         nbins = 25
 
     create_folder(f"{experiments_folder}/{dataset}")
