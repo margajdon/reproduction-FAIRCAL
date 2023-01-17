@@ -65,24 +65,24 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                     score_normalization, fpr):
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
-    # if not os.path.exists(saveto):
-    # prepare_dir(saveto)
-    # np.save(saveto, {})
-    embeddings = None
-    if dataset_name == 'rfw':
-        embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
-    elif 'bfw' in dataset_name:
-        embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
-    kmeans = KMeans(n_clusters=n_clusters)
-    kmeans.fit(embeddings[:5000])
-    # np.save(saveto, kmeans)
-    # else:
-    #     while True:
-    #         kmeans = np.load(saveto, allow_pickle=True).item()
-    #         if type(kmeans) != dict:
-    #             break
-    #         print('Waiting for KMeans to be computed')
-    #         time.sleep(60)
+    if not os.path.exists(saveto):
+        prepare_dir(saveto)
+        np.save(saveto, {})
+        embeddings = None
+        if dataset_name == 'rfw':
+            embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
+        elif 'bfw' in dataset_name:
+            embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
+        kmeans = KMeans(n_clusters=n_clusters)
+        kmeans.fit(embeddings)
+        np.save(saveto, kmeans)
+    else:
+        while True:
+            kmeans = np.load(saveto, allow_pickle=True).item()
+            if type(kmeans) != dict:
+                break
+            print('Waiting for KMeans to be computed')
+            time.sleep(60)
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
     elif 'bfw' in dataset_name:
@@ -311,35 +311,26 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
         ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
         cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
 
-    # collect scores and ground_truth per cluster for the calibration set
+    # Process pickle file
     temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
     temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
     temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
 
-    # convert to dict to allow for efficient indexing
-    temp = temp.set_index('img_path')['embedding'].to_dict()
+    # Predict kmeans
+    temp['i_cluster'] = kmeans.predict(np.vstack(temp['embedding'].to_numpy()))
+    temp = temp.set_index('img_path')
 
+    # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
 
-        cutOff = 5000
-        pb = tqdm(total=cutOff)
+        pb = tqdm(total=len(db))
         for i in range(len(db)):
-            if i > 5000:
-                continue
             t = 0
             for path in ['path1', 'path2']:
                 key = db[path].iloc[i]
-                if feature == 'arcface':
-                    i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
-                else:
-                    try:
-                        i_cluster = kmeans.predict(temp[key])[0]
-                    except:
-                        continue
-
-                cluster_scores[dataset][i, t] = i_cluster
+                cluster_scores[dataset][i, t] = temp.loc[key]['i_cluster']
                 t += 1
             pb.update()
         pb.close()
