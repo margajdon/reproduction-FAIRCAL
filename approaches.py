@@ -65,24 +65,19 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                     score_normalization, fpr):
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
-    if not os.path.exists(saveto):
-        prepare_dir(saveto)
-        np.save(saveto, {})
-        embeddings = None
-        if dataset_name == 'rfw':
-            embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
-        elif 'bfw' in dataset_name:
-            embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
-        kmeans = KMeans(n_clusters=n_clusters)
-        kmeans.fit(embeddings)
-        np.save(saveto, kmeans)
-    else:
-        while True:
-            kmeans = np.load(saveto, allow_pickle=True).item()
-            if type(kmeans) != dict:
-                break
-            print('Waiting for KMeans to be computed')
-            time.sleep(60)
+    if os.path.exists(saveto):
+        os.remove(saveto)
+    prepare_dir(saveto)
+    np.save(saveto, {})
+    embeddings = None
+    if dataset_name == 'rfw':
+        embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
+    elif 'bfw' in dataset_name:
+        embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
+    kmeans = KMeans(n_clusters=n_clusters)
+    kmeans.fit(embeddings)
+    np.save(saveto, kmeans)
+
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
     elif 'bfw' in dataset_name:
