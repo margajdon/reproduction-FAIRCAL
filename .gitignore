@@ -2,12 +2,11 @@ data/
 __pycache__/
 .idea/
 embeddings/
+similarities/
 experiments/
+output/
+mtcnn-model/
 player1.jpg
 player2.jpg
 resnet100.onnx
-mtcnn-model/
-output/
-similarities/
-embeddings.zip
-similarities.zip
+.DS_Store
