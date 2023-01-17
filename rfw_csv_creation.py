@@ -5,7 +5,11 @@ import pandas as pd
 def extract_pairs_txt(file_path, group):
     df = pd.read_csv(file_path, header=None)[0].str.split('\t', expand=True)
     df.columns = ['id1', 'num1', 'id2', 'num2']
+
+    # cond is a mask that filters whether the pair belongs ot the same face
+    # 1: same/genuine face, 0: different/ungenuine face
     cond = df['num2'].isnull()
+
     df.loc[cond, 'num2'] = df.loc[cond, 'id2']
     df.loc[cond, 'id2'] = df.loc[cond, 'id1']
     df['ethnicity'] = group

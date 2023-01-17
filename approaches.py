@@ -3,6 +3,8 @@ import torch
 import pickle
 import os
 import time
+from tqdm import tqdm
+import pandas as pd
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
@@ -217,14 +219,16 @@ def collect_embeddings_rfw(feature, db_cal):
 def collect_embeddings_bfw(feature, db_cal):
     # collect embeddings of all the images in the calibration set
     embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    file_names_visited = []
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
-    for path in ['path1', 'path2']:
-        file_names = db_cal[path].values
-        for file_name in file_names:
-            if file_name not in file_names_visited:
-                embeddings = np.concatenate((embeddings, temp[file_name].reshape(1, -1)))
-                file_names_visited.append(file_name)
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+
+    # Ensure temp and bfw.csv agree on the path structure
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+    temp['embedding'] = temp['embedding'].to_list()
+
+    file_names = pd.concat([db_cal['path1'], db_cal['path2']]).drop_duplicates()
+    embeddings = temp[temp['img_path'].isin(file_names)]['embedding'].to_numpy()
+    embeddings = np.vstack(embeddings)
 
     return embeddings
 
@@ -307,21 +311,31 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
         ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
         cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
 
-    # collect scores and ground_truth per cluster for the calibration set
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
+    # Process pickle file
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/faces-cropped/', ''))
+
+    # Predict kmeans
+    temp['i_cluster'] = kmeans.predict(np.vstack(temp['embedding'].to_numpy()))
+    temp = temp.set_index('img_path')
+
+    # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
+
+        pb = tqdm(total=len(db))
         for i in range(len(db)):
             t = 0
             for path in ['path1', 'path2']:
                 key = db[path].iloc[i]
-                if feature == 'arcface':
-                    i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
-                else:
-                    i_cluster = kmeans.predict(temp[key])[0]
-
-                cluster_scores[dataset][i, t] = i_cluster
+                try:
+                    cluster_scores[dataset][i, t] = temp.loc[key]['i_cluster']
+                except:
+                    pass
                 t += 1
+            pb.update()
+        pb.close()
 
     return scores, ground_truth, clusters, cluster_scores

@@ -4,7 +4,6 @@ import os
 import argparse
 import torch
 
-
 from approaches import baseline
 from approaches import cluster_methods
 from approaches_ftc import ftc
@@ -224,12 +223,26 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
+    args.dataset = 'bfw'
+    args.features = 'facenet-webface'
+    args.approaches = 'faircal'
+    args.calibration_methods = 'beta'
+
     dataset = args.dataset
     if dataset == 'rfw':
         db = pd.read_csv('data/rfw/rfw.csv')
         nbins = 10
     elif 'bfw' in dataset:
         db = pd.read_csv('data/bfw/bfw.csv')
+        db = db.rename(columns={
+            'p1': 'path1',
+            'p2': 'path2',
+            'label': 'same',
+            'vgg16': 'facenet-webface',
+            'resnet50': 'facenet',
+            'senet50': 'arcface'
+        })
+        db['same'].replace([1, 0], [True, False])
         nbins = 25
 
     create_folder(f"{experiments_folder}/{dataset}")
@@ -246,7 +259,7 @@ def main():
         calibration_methods = ['binning', 'isotonic_regression', 'beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1]
+    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
