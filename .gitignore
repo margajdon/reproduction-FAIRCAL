@@ -8,3 +8,6 @@ player2.jpg
 resnet100.onnx
 mtcnn-model/
 output/
+similarities/
+embeddings.zip
+similarities.zip

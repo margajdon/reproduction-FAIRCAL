@@ -8,13 +8,14 @@ import matplotlib.pyplot as plt
 
 def main():
     # Load data
-    embeddings = pickle.load(open('./embeddings/facenet_bfw_embeddings.pk', 'rb'))[['img_path', 'embedding']]
-    given = pd.read_csv('./data/bfw/bfw.csv')[['label', 'p1', 'p2', 'facenet']]
+    embeddings = pickle.load(open('./embeddings/facenet-webface_bfw_embeddings.pk', 'rb'))[['img_path', 'embedding']]
+    given = pd.read_csv('./data/bfw/bfw.csv').rename(columns={'same': 'label'})[['label', 'p1', 'p2', 'facenet']]
     print('Total reference cosine pairs:', len(given))
 
     # Make sure both dfs have same formatted paths
-    embeddings['img_path'] = embeddings['img_path'].apply(lambda x: x.replace('data\\bfw\\faces-cropped\\', ''))
-    embeddings['img_path'] = embeddings['img_path'].apply(lambda x: x.replace('\\', '/'))
+    embeddings['img_path'] = embeddings['img_path'].apply(
+        lambda x: x.replace('\\', '/').replace('data/bfw/bfw-cropped-aligned/', '')
+    )
     
     # Get only the images for which we have embeddings
     given = given[(given['p1'].isin(embeddings['img_path'])) & (given['p2'].isin(embeddings['img_path']))]
@@ -22,10 +23,7 @@ def main():
     print(f'Considering {len(given)} pairs')
 
     # Get cosine similarity
-    sims = []
-    for index, row in tqdm(given.iterrows(), total=len(given)):
-        sims.append(getCosSim(row, embeddings))
-    given['cos_sim'] = sims
+    given['cos_sim'] = given.apply(lambda x: getCosSim(x, embeddings), axis=1)
 
     # Calculate difference and report metrics
     difference = (given['cos_sim'] - given['facenet']).to_numpy()
@@ -38,17 +36,17 @@ def main():
     print(f'Std: {std}')
     print(f'Linear corr: {corr}')
     
-    difference_same = (given[given["label"]==1]['cos_sim'] - given[given["label"]==1]['facenet']).to_numpy()
-    difference_diff = (given[given["label"]==0]['cos_sim'] - given[given["label"]==0]['facenet']).to_numpy()
-    
-    plt.hist(difference_same, bins=40, alpha=0.7)
-    plt.hist(difference_diff, bins=40, alpha=0.7)
-    plt.plot([],[],' ', label=f'n={len(difference)}\nMean={mean}\nStd={std}\nCorr={corr}')
-    plt.xlabel("predicted - reference")
-    plt.ylabel("frequency")
-    plt.legend(handletextpad=.0, handlelength=0)
-    plt.title("Comparison of cosine similarity of photo-pair embeddings")
-    plt.show()
+    # difference_same = (given[given["label"]==1]['cos_sim'] - given[given["label"]==1]['facenet']).to_numpy()
+    # difference_diff = (given[given["label"]==0]['cos_sim'] - given[given["label"]==0]['facenet']).to_numpy()
+    #
+    # plt.hist(difference_same, bins=40, alpha=0.7)
+    # plt.hist(difference_diff, bins=40, alpha=0.7)
+    # plt.plot([],[],' ', label=f'n={len(difference)}\nMean={mean}\nStd={std}\nCorr={corr}')
+    # plt.xlabel("predicted - reference")
+    # plt.ylabel("frequency")
+    # plt.legend(handletextpad=.0, handlelength=0)
+    # plt.title("Comparison of cosine similarity of photo-pair embeddings")
+    # plt.show()
 
 def getCosSim(row, embeddings):
     embedding_p1 = embeddings[embeddings['img_path'] == row['p1']]['embedding'].to_numpy()[0]
