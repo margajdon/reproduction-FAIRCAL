@@ -223,12 +223,26 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
+    args.dataset = 'bfw'
+    args.features = 'facenet-webface'
+    args.approaches = 'faircal'
+    args.calibration_methods = 'beta'
+
     dataset = args.dataset
     if dataset == 'rfw':
         db = pd.read_csv('data/rfw/rfw.csv')
         nbins = 10
     elif 'bfw' in dataset:
         db = pd.read_csv('data/bfw/bfw.csv')
+        db = db.rename(columns={
+            'p1': 'path1',
+            'p2': 'path2',
+            'label': 'same',
+            'vgg16': 'facenet-webface',
+            'resnet50': 'facenet',
+            'senet50': 'arcface'
+        })
+        db['same'].replace([1, 0], [True, False])
         nbins = 25
 
     create_folder(f"{experiments_folder}/{dataset}")

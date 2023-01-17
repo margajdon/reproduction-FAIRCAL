@@ -330,7 +330,10 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
             t = 0
             for path in ['path1', 'path2']:
                 key = db[path].iloc[i]
-                cluster_scores[dataset][i, t] = temp.loc[key]['i_cluster']
+                try:
+                    cluster_scores[dataset][i, t] = temp.loc[key]['i_cluster']
+                except:
+                    pass
                 t += 1
             pb.update()
         pb.close()
