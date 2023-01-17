@@ -12,7 +12,7 @@ from sklearn.metrics import roc_curve
 from calibration_methods import BinningCalibration
 from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
-from dir_utils import prepare_dir
+from utils import prepare_dir
 
 
 def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1):

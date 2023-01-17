@@ -11,6 +11,7 @@ import torch
 from torchvision import transforms
 import pickle
 import mxnet as mx
+import datetime as dt
 from facenet_pytorch import MTCNN, InceptionResnetV1
 
 from arcface_model import get_arcface_model, get_input
@@ -54,7 +55,7 @@ parser.add_argument(
 parser.add_argument(
 	'--img_prep', type=str,
 	help='preprocessing type applied to the images',
-	choices=['mtcnn', 'vanilla'],
+	choices=['mtcnn', 'vanilla', 'arcface'],
 	default='vanilla')
 
 parser.add_argument('--cpu', action='store_true')
@@ -264,7 +265,7 @@ class EmbeddingGenerator(ImageManager):
 			data = mx.nd.array(img_batch)
 			db = mx.io.DataBatch(data=(data,))
 			self.model.forward(db, is_train=False)
-			embedding_list.append(self.model.get_outputs()[0])
+			embedding_list.append(self.model.get_outputs()[0].asnumpy())
 		return np.vstack(embedding_list)
 
 	def get_embedding_batch(self, img_names):
@@ -320,18 +321,14 @@ class EmbeddingGenerator(ImageManager):
 		return embeddings_df, skipped_df
 
 
-def save_outputs(embeddings_folder, model, dataset, limit_images):
+def save_outputs(data_to_save, embeddings_folder, model, dataset, limit_images=None):
 	save_str = os.path.join(embeddings_folder, f"{model}_{dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
-
 	prepare_dir(save_str)
-	embeddings_df.to_csv(f"{save_str}_embeddings.csv")
-	skipped_df.to_csv(f"{save_str}_skipped.csv")
-
-	pickle.dump(embeddings_df, open(f"{save_str}_embeddings.pk", "wb"))
-	pickle.dump(skipped_df, open(f"{save_str}_skipped.pk", "wb"))
-
+	for k, df in data_to_save.items():
+		df.to_csv(f"{save_str}_{k}.csv")
+		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
 	return save_str
 
 
@@ -378,7 +375,8 @@ if __name__ == '__main__':
 	embeddings_df, skipped_df = embedding_generator.main()
 
 	# Save outputs
-	save_str = save_outputs(embeddings_folder, args.model, args.dataset, args.limit)
+	data_dic = {'embeddings': embeddings_df, 'skipped': skipped_df}
+	save_str = save_outputs(data_dic, embeddings_folder, args.model, args.dataset, args.limit)
 
 	# Print completion information
 	print_completion_info(start, save_str)
