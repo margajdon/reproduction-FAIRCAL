@@ -321,7 +321,7 @@ class EmbeddingGenerator(ImageManager):
 		return embeddings_df, skipped_df
 
 
-def save_outputs(embeddings_folder, model, dataset, limit_images):
+def save_outputs(data_to_save, embeddings_folder, model, dataset, limit_images=None):
 	save_str = os.path.join(embeddings_folder, f"{model}_{dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
