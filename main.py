@@ -238,7 +238,7 @@ def main():
             'p1': 'path1',
             'p2': 'path2',
             'label': 'same',
-            'vgg16': 'facenet-webface',
+            'vgg2': 'facenet-webface',
             'resnet50': 'facenet',
             'senet50': 'arcface'
         })
