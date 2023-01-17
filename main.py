@@ -279,23 +279,22 @@ def main():
                             print('         number clusters: %d' % n_cluster)
                         saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
                                                 fpr_thr)
-                        if not os.path.exists(saveto):
-                            prepare_dir(saveto)
-                            np.save(saveto, {})
-                            data = gather_results(
-                                dataset,
-                                db,
-                                nbins,
-                                n_cluster,
-                                fpr_thr,
-                                feature,
-                                approach,
-                                calibration_method
-                            )
-                            np.save(saveto, data)
-                        else:
-                            print(saveto)
-                            print('skipped')
+                        if os.path.exists(saveto):
+                            os.remove(saveto)
+                        prepare_dir(saveto)
+                        np.save(saveto, {})
+                        data = gather_results(
+                            dataset,
+                            db,
+                            nbins,
+                            n_cluster,
+                            fpr_thr,
+                            feature,
+                            approach,
+                            calibration_method
+                        )
+                        np.save(saveto, data)
+
 
 
 def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
