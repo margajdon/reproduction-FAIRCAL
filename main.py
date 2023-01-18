@@ -10,7 +10,6 @@ from approaches_ftc import ftc
 from approaches_agenda import agenda
 from approaches import oracle
 from utils import prepare_dir
-
 from utils import compute_scores
 from sklearn.metrics import roc_curve
 
@@ -27,7 +26,6 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
     if dataset_name == 'rfw':
         subgroups = {'ethnicity': ['African', 'Asian', 'Caucasian', 'Indian']}
         sensitive_attributes = {'ethnicity': ['ethnicity', 'ethnicity']}
-        db = db_input.copy()
     elif dataset_name == 'bfw':
         subgroups = {
             'e': ['B', 'A', 'W', 'I'],
@@ -36,8 +34,10 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                     'indian_females', 'indian_males']
         }
         sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
-        db = db_input.copy()
+    db = db_input.copy()
 
+    # remove image pairs that have missing cosine similarities
+    db = db[db[feature].notna()]
     data = {}
 
     # select one of the folds to be the test set
@@ -204,7 +204,7 @@ parser.add_argument(
 parser.add_argument(
     '--features', type=str,
     help='features',
-    choices=['facenet', 'facenet-webface', 'arcface'],
+    choices=['facenet', 'facenet-webface', 'arcface', 'all'],
     default='all')
 
 parser.add_argument(
@@ -223,10 +223,6 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.dataset = 'bfw'
-    args.features = 'facenet-webface'
-    args.approaches = 'faircal'
-    args.calibration_methods = 'beta'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -239,7 +235,10 @@ def main():
     create_folder(f"{experiments_folder}/{dataset}")
 
     if args.features == 'all':
-        features = ['facenet', 'facenet-webface', 'arcface']
+        if args.dataset == 'rfw':
+            features = ['facenet', 'facenet-webface']
+        else:
+            features = ['facenet-webface', 'arcface']
     else:
         features = [args.features]
     if args.approaches == 'all':
@@ -250,7 +249,7 @@ def main():
         calibration_methods = ['binning', 'isotonic_regression', 'beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] n_clusters = 100 was used in the tables on page 8
+    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
@@ -293,7 +292,6 @@ def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, sub
         select = np.full(scores.size, True, dtype=bool)
     else:
         select = np.logical_and(subgroup_scores['left'] == subgroup, subgroup_scores['right'] == subgroup)
-
     r = roc_curve(ground_truth[select].astype(bool), confidences[select], drop_intermediate=False)
     fpr = {'calibration': r[0]}
     tpr = {'calibration': r[1]}

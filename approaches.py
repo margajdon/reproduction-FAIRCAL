@@ -301,9 +301,11 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
     ground_truth = {}
     cluster_scores = {}
     for dataset in ['cal', 'test']:
-        scores[dataset] = np.zeros(len(db_fold[dataset]))
-        ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
-        cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
+        # consider only pairs that have cosine similarities
+        number_pairs = len(db_fold[dataset][db_fold[dataset][feature].notna()])
+        scores[dataset] = np.zeros(number_pairs)
+        ground_truth[dataset] = np.zeros(number_pairs).astype(bool)
+        cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
 
     # Process pickle file
     temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
@@ -316,6 +318,8 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
 
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+        # remove image pairs that have missing cosine similarities
+        db = db[db[feature].notna()]
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
 
