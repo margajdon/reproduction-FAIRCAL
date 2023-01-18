@@ -39,4 +39,4 @@ def get_rfw_df():
 
 if __name__ == '__main__':
     rfw_df = get_rfw_df()
-    rfw_df.to_csv('data/rfw/rfw.csv')
+    rfw_df.to_csv('data/rfw/rfw.csv', index=False)

@@ -229,7 +229,7 @@ def main():
     args.calibration_methods = 'beta'
     args.approaches = 'fsn'
     args.features = 'facenet-webface'
-    args.dataset = 'rfw'
+    args.dataset = 'bfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset

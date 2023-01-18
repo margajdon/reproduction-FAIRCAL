@@ -74,10 +74,8 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
-    start = time.time()
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(embeddings)
-    print(f'kmeans took {time.time()-start}')
     np.save(saveto, kmeans)
 
     start = time.time()
@@ -171,9 +169,6 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                         p[select] += stats[i_cluster]
             confidences[dataset] = confidences[dataset] / p
 
-
-    print(f'rest took {time.time()-start}')
-
     return scores, ground_truth, confidences, fair_scores
 
 
@@ -201,7 +196,7 @@ def collect_embeddings_rfw(db_cal, embedding_data):
         file_names = set(select['path1'].tolist()) | set(select['path2'].tolist())
         embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
         embeddings = np.vstack(embeddings)
-        all_embeddings = np.concatenate([all_embeddings, embeddings])
+        all_embeddings = np.concatenate([all_embeddings, embeddings], ignore_index=True)
 
     return all_embeddings
 
