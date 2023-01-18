@@ -24,16 +24,16 @@ cos_sim_to_change = {
     'rfw': ['facenet', 'facenet-webface']
 }
 
-for dataset, pretrained_models in cos_sim_to_change.items():
-    for pretrained_model in pretrained_models:
-        current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
-        dfs[dataset][pretrained_model] = current_csv['cos_sim']
-
 # setting the bfw column of facenet to nan since we don't calculate cosine sims based on embeddings from this model
 bfw['facenet'] = np.nan
 bfw['facenet-webface'] = np.nan
 bfw['arcface'] = np.nan
 
+for dataset, pretrained_models in cos_sim_to_change.items():
+    for pretrained_model in pretrained_models:
+        current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
+        dfs[dataset][pretrained_model] = current_csv['cos_sim']
+
 # save files
-bfw.to_csv('data/bfw/bfw_w_sims.csv', index=False)
-rfw.to_csv('data/rfw/rfw_w_sims.csv', index=False)
+bfw.to_csv('data/bfw/bfw_w_sim.csv', index=False)
+rfw.to_csv('data/rfw/rfw_w_sim.csv', index=False)

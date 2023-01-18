@@ -66,7 +66,7 @@ class BinningCalibration():
             scores, ground_truth, self.bin_edges, self.binning_indices)
 
     def predict(self, scores):
-        return self.bin_confidence[np.maximum(np.digitize(scores, self.bin_edges, right=True) - 1, 0) - 1]
+        return self.bin_confidence[np.maximum(np.digitize(scores, self.bin_edges, right=True) - 1, 0) -1]
 
 
 def normalize(score, score_min=-1, score_max=1):

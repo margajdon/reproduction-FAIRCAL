@@ -228,10 +228,10 @@ def main():
 
     dataset = args.dataset
     if dataset == 'rfw':
-        db = pd.read_csv('data/rfw/rfw_w_sims.csv')
+        db = pd.read_csv('data/rfw/rfw_w_sim.csv')
         nbins = 10
     elif 'bfw' in dataset:
-        db = pd.read_csv('data/bfw/bfw_w_sims.csv')
+        db = pd.read_csv('data/bfw/bfw_w_sim.csv')
         nbins = 25
 
     create_folder(f"{experiments_folder}/{dataset}")
