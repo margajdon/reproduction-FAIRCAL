@@ -228,6 +228,7 @@ def main():
     args.calibration_methods = 'beta'
     args.approaches = 'faircal'
     args.features = 'facenet-webface'
+    args.dataset = 'rfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset
@@ -306,6 +307,7 @@ def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, sub
         select = np.full(scores.size, True, dtype=bool)
     else:
         select = np.logical_and(subgroup_scores['left'] == subgroup, subgroup_scores['right'] == subgroup)
+
     r = roc_curve(ground_truth[select].astype(bool), confidences[select], drop_intermediate=False)
     fpr = {'calibration': r[0]}
     tpr = {'calibration': r[1]}

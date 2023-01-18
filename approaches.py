@@ -82,7 +82,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
 
     start = time.time()
     if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
+        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
         r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     else:
@@ -191,6 +191,8 @@ def collect_embeddings_rfw(db_cal, embedding_data):
     # Iterating over subgroup necessary for creating correct image_path string
     for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
         select = db_cal[db_cal['ethnicity'] == subgroup]
+        if select.empty:
+            continue
         select['num1'] = select['num1'].astype('string')
         select['path1'] = subgroup + '/' + select['id1'] + '/' + select['id1'] + '_000' + select['num1'] + '.jpg'
         select['num2'] = select['num2'].astype('string')
@@ -214,7 +216,7 @@ def collect_embeddings_bfw(db_cal, embedding_data):
     return embeddings
 
 
-def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold):
+def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data):
     # setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
@@ -234,42 +236,60 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold):
 
     # collect scores, ground_truth per cluster for the calibration set
 
-    if feature != 'arcface':
-        subgroup_old = ''
-        temp = None
-        for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-            scores[dataset] = np.array(db[feature])
-            ground_truth[dataset] = np.array(db['same'].astype(bool))
-            for i in range(len(db)):
-                subgroup = db['ethnicity'].iloc[i]
-                if subgroup != subgroup_old:
-                    temp = pickle.load(
-                        open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
-                subgroup_old = subgroup
+    # Predict kmeans
+    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
+    cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 
-                t = 0
-                for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                    folder_name = db[id_face].iloc[i]
-                    file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
-                    key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
-                    i_cluster = kmeans.predict(temp[key])[0]
-                    cluster_scores[dataset][i, t] = i_cluster
-                    t += 1
-    else:
-        temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
-        for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-            scores[dataset] = np.array(db[feature])
-            ground_truth[dataset] = np.array(db['same'].astype(bool))
-            for i in range(len(db)):
-                subgroup = db['ethnicity'].iloc[i]
-                t = 0
-                for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                    folder_name = db[id_face].iloc[i]
-                    file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
-                    key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
-                    i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
-                    cluster_scores[dataset][i, t] = i_cluster
-                    t += 1
+
+    for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+        scores[dataset] = np.array(db[feature])
+        ground_truth[dataset] = np.array(db['same'].astype(bool))
+
+        db['path1'] = db['ethnicity'] + '/' + db['id1'] + '/' + db['id1'] + '_000' + db['num1'].map(str) + '.jpg'
+        db['path2'] = db['ethnicity'] + '/' + db['id2'] + '/' + db['id2'] + '_000' + db['num2'].map(str) + '.jpg'
+
+        db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
+        db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
+
+        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
+
+
+    # if feature != 'arcface':
+    #     subgroup_old = ''
+    #     temp = None
+    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+    #         scores[dataset] = np.array(db[feature])
+    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
+    #         for i in range(len(db)):
+    #             subgroup = db['ethnicity'].iloc[i]
+    #             if subgroup != subgroup_old:
+    #                 temp = pickle.load(
+    #                     open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
+    #             subgroup_old = subgroup
+    #
+    #             t = 0
+    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+    #                 folder_name = db[id_face].iloc[i]
+    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
+    #                 key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
+    #                 i_cluster = kmeans.predict(temp[key])[0]
+    #                 cluster_scores[dataset][i, t] = i_cluster
+    #                 t += 1
+    # else:
+    #     temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
+    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+    #         scores[dataset] = np.array(db[feature])
+    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
+    #         for i in range(len(db)):
+    #             subgroup = db['ethnicity'].iloc[i]
+    #             t = 0
+    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+    #                 folder_name = db[id_face].iloc[i]
+    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
+    #                 key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
+    #                 i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
+    #                 cluster_scores[dataset][i, t] = i_cluster
+    #                 t += 1
 
     return scores, ground_truth, clusters, cluster_scores
 
