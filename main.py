@@ -3,6 +3,7 @@ import numpy as np
 import os
 import argparse
 import torch
+import pickle
 
 from approaches import baseline
 from approaches import cluster_methods
@@ -19,7 +20,7 @@ ftc_settings_folder = 'experiments/ftc_settings/'
 agenda_settings_folder = 'experiments/agenda_settings/'
 
 
-def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, approach, calibration_method):
+def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, approach, calibration_method, embedding_data):
     db = None
     subgroups = None
     sensitive_attributes = None
@@ -68,7 +69,8 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 db_fold,
                 n_clusters,
                 False,
-                0
+                0,
+                embedding_data
             )
         elif approach == 'fsn':
             scores, ground_truth, confidences, fair_scores = cluster_methods(
@@ -273,6 +275,13 @@ def main():
                             os.remove(saveto)
                         prepare_dir(saveto)
                         np.save(saveto, {})
+
+                        # Load embedding data and preprocess
+                        embedding_data = pickle.load(open(f'embeddings/{feature}_{dataset}_embeddings.pk', 'rb'))
+                        if dataset == 'bfw':
+                            embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
+                        if dataset == 'rfw':
+                            embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
                         data = gather_results(
                             dataset,
                             db,
@@ -281,7 +290,8 @@ def main():
                             fpr_thr,
                             feature,
                             approach,
-                            calibration_method
+                            calibration_method,
+                            embedding_data
                         )
                         np.save(saveto, data)
 
