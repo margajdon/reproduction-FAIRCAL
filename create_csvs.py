@@ -29,5 +29,5 @@ for dataset, pretrained_models in cos_sim_to_change.items():
         dfs[dataset][pretrained_model] = current_csv['cos_sim']
 
 # save files
-bfw.to_csv('data/bfw/bfw.csv')
-rfw.to_csv('data/rfw/rfw.csv')
+bfw.to_csv('data/bfw/bfw_w_sims.csv', index=False)
+rfw.to_csv('data/rfw/rfw_w_sims.csv', index=False)
