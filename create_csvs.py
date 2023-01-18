@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 # bfw
 bfw = pd.read_csv('data/bfw/bfw.csv')
@@ -27,6 +28,11 @@ for dataset, pretrained_models in cos_sim_to_change.items():
     for pretrained_model in pretrained_models:
         current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
         dfs[dataset][pretrained_model] = current_csv['cos_sim']
+
+# setting the bfw column of facenet to nan since we don't calculate cosine sims based on embeddings from this model
+bfw['facenet'] = np.nan
+bfw['facenet-webface'] = np.nan
+bfw['arcface'] = np.nan
 
 # save files
 bfw.to_csv('data/bfw/bfw_w_sims.csv', index=False)
