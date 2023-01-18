@@ -38,7 +38,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
     db = db_input.copy()
 
     # remove image pairs that have missing cosine similarities
-    db = db[db[feature].notna()]
+    db = db[db[feature].notna()].reset_index(drop=True)
     data = {}
 
     # select one of the folds to be the test set
@@ -228,10 +228,10 @@ def main():
 
     dataset = args.dataset
     if dataset == 'rfw':
-        db = pd.read_csv('data/rfw/rfw.csv')
+        db = pd.read_csv('data/rfw/rfw_w_sim.csv')
         nbins = 10
     elif 'bfw' in dataset:
-        db = pd.read_csv('data/bfw/bfw.csv')
+        db = pd.read_csv('data/bfw/bfw_w_sim.csv')
         nbins = 25
 
     create_folder(f"{experiments_folder}/{dataset}")
