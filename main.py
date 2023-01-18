@@ -82,7 +82,8 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 db_fold,
                 n_clusters,
                 True,
-                fpr_thr
+                fpr_thr,
+                embedding_data
             )
         elif approach == 'ftc':
             fair_scores, confidences, model = ftc(dataset_name, feature, db_fold, nbins, calibration_method)
@@ -226,7 +227,7 @@ def main():
     args = parser.parse_args()
     db = None
     args.calibration_methods = 'beta'
-    args.approaches = 'faircal'
+    args.approaches = 'fsn'
     args.features = 'facenet-webface'
     args.dataset = 'rfw'
     # args.approaches = 'faircal'
