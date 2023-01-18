@@ -327,7 +327,7 @@ def save_outputs(data_to_save, embeddings_folder, model, dataset, limit_images=N
 		save_str = save_str + f"_limited_{limit_images}"
 	prepare_dir(save_str)
 	for k, df in data_to_save.items():
-		df.to_csv(f"{save_str}_{k}.csv")
+		df.to_csv(f"{save_str}_{k}.csv", index=False)
 		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
 	return save_str
 

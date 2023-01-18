@@ -140,7 +140,7 @@ if __name__ == '__main__':
     cos_df = bfw_comparison(model)
     print(f'Took {round(time.time() - start)} seconds')
 
-    # save_outputs({'cosin_sim': cos_df}, 'similarities', model, 'bfw')
+    save_outputs({'cosin_sim': cos_df}, 'similarities', model, 'bfw')
 
     model = 'arcface'
 
