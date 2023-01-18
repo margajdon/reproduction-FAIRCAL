@@ -10,7 +10,7 @@ bfw = bfw.rename(columns={
     'resnet50': 'facenet',
     'senet50': 'arcface'
 })
-bfw['same'].replace([1, 0], [True, False])
+bfw['same'] = bfw['same'].replace([1, 0], [True, False])
 
 # rfw
 rfw = pd.read_csv('data/rfw/rfw.csv')
