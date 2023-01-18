@@ -225,9 +225,9 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.calibration_methods = 'beta'
-    args.approaches = 'faircal'
-    args.features = 'facenet-webface'
+    # args.calibration_methods = 'beta'
+    # args.approaches = 'faircal'
+    # args.features = 'facenet-webface'
     # args.approaches = 'faircal'
 
     dataset = args.dataset
