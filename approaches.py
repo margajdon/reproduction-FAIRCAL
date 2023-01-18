@@ -195,7 +195,8 @@ def collect_embeddings_rfw(db_cal, embedding_data):
         select['path1'] = subgroup + '/' + select['id1'] + '/' + select['id1'] + '_000' + select['num1'] + '.jpg'
         select['num2'] = select['num2'].astype('string')
         select['path2'] = subgroup + '/' + select['id2'] + '/' + select['id2'] + '_000' + select['num2'] + '.jpg'
-        file_names = pd.concat([select['path1'], select['path2']]).drop_duplicates()
+
+        file_names = set(select['path1'].tolist()) | set(select['path2'].tolist())
         embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
         embeddings = np.vstack(embeddings)
         all_embeddings = np.concatenate([all_embeddings, embeddings])
@@ -307,6 +308,6 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
         db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
 
-        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
+        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
 
     return scores, ground_truth, clusters, cluster_scores
