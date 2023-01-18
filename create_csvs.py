@@ -26,7 +26,7 @@ cos_sim_to_change = {
 for dataset, pretrained_models in cos_sim_to_change.items():
     for pretrained_model in pretrained_models:
         current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
-        dfs[dataset][f'our_{pretrained_model}'] = current_csv['cos_sim']
+        dfs[dataset][pretrained_model] = current_csv['cos_sim']
 
 # save files
 bfw.to_csv('data/bfw/bfw_w_sims.csv', index=False)

@@ -74,16 +74,21 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
+    start = time.time()
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(embeddings)
+    print(f'kmeans took {time.time()-start}')
     np.save(saveto, kmeans)
 
+    start = time.time()
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
     elif 'bfw' in dataset_name:
         r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
+    print(f'collect_miscellania_bfw took {time.time()-start}')
+    start = time.time()
     scores = r[0]
     ground_truth = r[1]
     clusters = r[2]
@@ -166,6 +171,9 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                         p[select] += stats[i_cluster]
             confidences[dataset] = confidences[dataset] / p
 
+
+    print(f'rest took {time.time()-start}')
+
     return scores, ground_truth, confidences, fair_scores
 
 
@@ -198,7 +206,7 @@ def collect_embeddings_rfw(db_cal, embedding_data):
 def collect_embeddings_bfw(db_cal, embedding_data):
     # Collect embeddings of all the images in the calibration set
     embedding_data['embedding'] = embedding_data['embedding'].to_list()
-    file_names = pd.concat([db_cal['path1'], db_cal['path2']]).drop_duplicates()
+    file_names = set(db_cal['path1'].tolist()) | set(db_cal['path2'].tolist())
     embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
     embeddings = np.vstack(embeddings)
 
@@ -287,26 +295,18 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
 
     # Predict kmeans
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
-    embedding_data = embedding_data.set_index('img_path')
+    cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         # remove image pairs that have missing cosine similarities
-        db = db[db[feature].notna()]
-        scores[dataset] = np.array(db[feature])
-        ground_truth[dataset] = np.array(db['same'].astype(bool))
+        db2 = db[db[feature].notna()].reset_index(drop=True)
+        scores[dataset] = np.array(db2[feature])
+        ground_truth[dataset] = np.array(db2['same'].astype(bool))
 
-        pb = tqdm(total=len(db))
-        for i in range(len(db)):
-            t = 0
-            for path in ['path1', 'path2']:
-                key = db[path].iloc[i]
-                try:
-                    cluster_scores[dataset][i, t] = embedding_data.loc[key]['i_cluster']
-                except:
-                    pass
-                t += 1
-            pb.update()
-        pb.close()
+        db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
+        db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
+
+        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
 
     return scores, ground_truth, clusters, cluster_scores
