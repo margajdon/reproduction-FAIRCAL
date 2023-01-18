@@ -6,7 +6,7 @@ bfw = bfw.rename(columns={
     'p1': 'path1',
     'p2': 'path2',
     'label': 'same',
-    'vgg2': 'facenet-webface',
+    'vgg16': 'facenet-webface',
     'resnet50': 'facenet',
     'senet50': 'arcface'
 })
