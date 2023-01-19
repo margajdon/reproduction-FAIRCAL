@@ -261,10 +261,16 @@ class EmbeddingGenerator(ImageManager):
 	def arcface_embedding_loop(self, imgs):
 		embedding_list = []
 		for img_batch in tqdm(batch(imgs, self.batch_size), total=np.ceil(len(imgs)/self.batch_size)):
+			first_img = img_batch[0].numpy()
 			img_batch = torch.stack(img_batch)
 			data = mx.nd.array(img_batch)
 			db = mx.io.DataBatch(data=(data,))
-			self.model.forward(db, is_train=False)
+			print("here")
+			first_db = vars(db)['data'][0].asnumpy()
+			print(first_db, first_img)
+			print(first_db==first_img)
+			pickle.dump((first_db, first_img), open("./data/test.pk", 'wb'))
+			self.model.forward(data, is_train=False)
 			embedding_list.append(self.model.get_outputs()[0].asnumpy())
 		return np.vstack(embedding_list)
 
@@ -358,9 +364,6 @@ if __name__ == '__main__':
 
 	# Parse arguments
 	args = parser.parse_args()
-	args.img_prep = 'arcface'
-	args.model = 'arcface'
-	args.incremental = 100
 
 	# Determine the device
 	device = determine_device(args.cpu)
