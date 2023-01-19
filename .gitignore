@@ -1,6 +1,7 @@
 data/
 __pycache__/
 .idea/
+.ipynb_checkpoints/
 embeddings/
 similarities/
 experiments/
