@@ -255,7 +255,7 @@ def collect_embeddings_rfw_agenda(feature, db_cal):
     id_embeddings = []
     if feature != 'arcface':
         for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-            temp = pickle.load(open('raw_data/embeddings/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
+            temp = pickle.load(open('data/embeddings/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
             select = db_cal['ethnicity'] == subgroup
 
             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
@@ -270,7 +270,7 @@ def collect_embeddings_rfw_agenda(feature, db_cal):
                         subgroup_embeddings.append(subgroup)
                         id_embeddings.append(id_embedding)
     else:
-        temp = pickle.load(open('raw_data/embeddings/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
+        temp = pickle.load(open('data/embeddings/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
         for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
             select = db_cal['ethnicity'] == subgroup
 
@@ -297,11 +297,21 @@ def collect_embeddings_bfw_agenda(feature, db_cal):
     id_embeddings = []
 
     file_names_visited = []
-    temp = pickle.load(open('raw_data/embeddings/bfw/' + feature + '_embeddings.pickle', 'rb'))
+    temp = pickle.load(open('embeddings/' + feature + '_bfw_embeddings.pk', 'rb'))
+
+    # Ensure temp and bfw.csv agree on the path structure
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
+    temp['embedding'] = temp['embedding'].to_list()
+
+    print(temp.head())
     for path, att, id_name in zip(['path1', 'path2'],['att1', 'att2'], ['id1', 'id2']):
         file_names = db_cal[path].values
+        print(f'File names: {file_names}')
         subgroups = db_cal[att].values
+        print(f'Subgroups: {subgroups}')
         ids = db_cal[id_name].values
+        print(f'Ids: {ids}')
         for file_name, subgroup, id_embedding in zip(file_names, subgroups, ids):
             if file_name not in file_names_visited:
                 embeddings = np.concatenate((embeddings, temp[file_name].reshape(1, -1)))

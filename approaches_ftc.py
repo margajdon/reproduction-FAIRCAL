@@ -157,7 +157,7 @@ def collect_error_embeddings_bfw(feature, db_cal):
     ground_truth = np.array(db_cal['same'].astype(bool))
     subgroups_left = np.array(db_cal['att1'])
     subgroups_right = np.array(db_cal['att2'])
-    temp = pickle.load(open('data/bfw/' + feature + '_embeddings.pickle', 'rb'))
+    temp = pickle.load(open('embeddings/' + feature + '_bfw_embeddings.pk', 'rb'))
     for path in ['path1', 'path2']:
         file_names = db_cal[path].values
         for i, file_name in enumerate(file_names):
