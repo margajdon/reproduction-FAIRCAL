@@ -238,7 +238,7 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.calibration_methods = 'binning'
+    args.calibration_methods = 'beta'
     args.approaches = 'agenda'
     args.features = 'facenet-webface'
     args.dataset = 'bfw'
