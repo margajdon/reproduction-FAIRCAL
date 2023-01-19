@@ -196,7 +196,7 @@ def collect_embeddings_rfw(db_cal, embedding_data):
         file_names = set(select['path1'].tolist()) | set(select['path2'].tolist())
         embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
         embeddings = np.vstack(embeddings)
-        all_embeddings = np.concatenate([all_embeddings, embeddings], ignore_index=True)
+        all_embeddings = np.concatenate([all_embeddings, embeddings])
 
     return all_embeddings
 

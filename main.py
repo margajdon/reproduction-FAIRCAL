@@ -36,25 +36,26 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
         }
         sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
     db = db_input.copy()
-    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
-    db['emb_1'] = db['path1'].map(embedding_map)
-    db['emb_2'] = db['path2'].map(embedding_map)
+    db['image_id_1_clean'] = db['id1'].map(str) + '_000' + db['num1'].map(str)
+    db['image_id_2_clean'] = db['id2'].map(str) + '_000' + db['num2'].map(str)
+    embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
+    db['emb_1'] = db['image_id_1_clean'].map(embedding_map)
+    db['emb_2'] = db['image_id_2_clean'].map(embedding_map)
     keep_cond = (
         db[feature].notna() &
         db['emb_1'].notnull() &
         db['emb_2'].notnull()
     )
 
+
     # remove image pairs that have missing cosine similarities
     db = db[keep_cond].reset_index(drop=True)
-
 
     data = {}
 
     # select one of the folds to be the test set
     for i_variable, fold in enumerate([1, 2, 3, 4, 5]):
         db_fold = {'cal': db[db['fold'] != fold], 'test': db[db['fold'] == fold]}
-
         scores = {}
         ground_truth = {}
         subgroup_scores = {}
@@ -238,10 +239,10 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.calibration_methods = 'beta'
-    args.approaches = 'agenda'
-    args.features = 'facenet-webface'
-    args.dataset = 'bfw'
+    # args.calibration_methods = 'beta'
+    # args.approaches = 'agenda'
+    # args.features = 'facenet-webface'
+    # args.dataset = 'bfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset
