@@ -226,6 +226,12 @@ def main():
     args = parser.parse_args()
     db = None
 
+    args.calibration_methods = 'beta'
+    args.approaches = 'faircal'
+    args.features = 'facenet-webface'
+    args.dataset = 'bfw'
+    # args.approaches = 'faircal'
+
     dataset = args.dataset
     if dataset == 'rfw':
         db = pd.read_csv('data/rfw/rfw_w_sim.csv')

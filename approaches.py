@@ -74,6 +74,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
+    print(embeddings.shape)
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(embeddings)
     np.save(saveto, kmeans)
