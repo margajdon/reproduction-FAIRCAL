@@ -74,6 +74,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
+    print(embeddings.shape)
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(embeddings)
     np.save(saveto, kmeans)
@@ -324,5 +325,6 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
 
         cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
+        print(f'{dataset}: {cluster_scores[dataset].shape}')
 
     return scores, ground_truth, clusters, cluster_scores
