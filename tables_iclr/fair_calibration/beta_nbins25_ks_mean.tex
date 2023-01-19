@@ -1,0 +1,14 @@
+\begin{table}
+\caption{Fairness Calibration as measured by Mean across sensitive subgroups.}
+\label{table:fair_calibration_ks_mean}
+\centering\resizebox{\textwidth}{!}{
+\begin{tabular}{l|cc|cc}
+{} & \multicolumn{2}{c|}{BFW} \\
+{} & FaceNet (Webface) &      ArcFace \\
+\midrule
+Baseline       & \textbf{      14.60$\pm$ 6.59} &   9.95$\pm$ 0.86 \\
+FSN \citep{terhorst2020scorenormalization}            &       14.80$\pm$ 6.92 & \textbf{  9.68$\pm$ 0.98 }\\
+FairCal (Ours) &       17.69$\pm$ 6.00 &  11.00$\pm$ 1.71 \\[2pt]
+\textit{Oracle (Ours) } & \textit{      12.06$\pm$ 4.27} &   8.28$\pm$ 1.76 \\
+\end{tabular}}
+\end{table}

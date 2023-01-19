@@ -1,0 +1,15 @@
+\begin{table}
+\caption{KS on all the pairs (Global (Gl)) and on each gender subgroup (Females (F), Males (M)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_ks_g}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{3}{c|}{FaceNet (Webface)} & \multicolumn{3}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &    F &     M &      Gl &    F &    M \\
+\midrule
+Baseline       &              6.71 & 6.78 &  9.31 &    4.47 & 8.13 & 4.84 \\
+FSN \citep{terhorst2020scorenormalization}            &              6.60 & 6.98 &  9.14 &    4.45 & 8.04 & 5.28 \\
+FairCal (Ours) &              6.10 & 9.91 & 11.47 &    5.49 & 8.04 & 7.89 \\[2pt]
+\textit{Oracle (Ours) } & \textit{6.56} & \textit{7.78} & \textit{9.7} & \textit{4.49} & \textit{9.04} & 3.38 \\
+\end{tabular}}
+\end{table}

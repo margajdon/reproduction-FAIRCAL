@@ -1,0 +1,16 @@
+\begin{table}
+\caption{\textbf{Accuracy:} Global accuracy measured by the AUROC and the TPR at different FPR thresholds.}
+\label{table:global_performance_beta}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 3.5pt}c@{\hskip 3.5pt}c@{\hskip 3.5pt}|c@{\hskip 3.5pt}c@{\hskip 3.5pt}c@{\hskip 3.5pt}|c@{\hskip 3.5pt}c@{\hskip 3.5pt}c@{\hskip 3.5pt}|c@{\hskip 3.5pt}c@{\hskip 3.5pt}c@{\hskip 3.5pt}}
+ & \multicolumn{3}{c}{BFW} \\
+ & \multicolumn{3}{c}{FaceNet (Webface)} \\
+\hfill $(\uparrow)$ &                AUROC &   0.1\% FPR &   1\% FPR \\
+\midrule
+Baseline       & \textbf{60.61} & \textbf{0.28} & \textbf{2.3}\\
+FSN \citep{terhorst2020scorenormalization}            &             60.61 & 0.28 & 2.30 \\
+FairCal (Ours) &             60.61 & 0.28 & 2.30 \\[2pt]
+\textit{Oracle (Ours) } & \textit{60.61} & \textit{0.28} & 2.30 \\
+\end{tabular}}
+\end{table}

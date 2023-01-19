@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Brier Score on all the pairs (Global (Gl)) and on each ethnicity subgroup (African (Af), Asian (As), Caucasian (Ca), Indian (In)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_brier_e}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{5}{c|}{FaceNet (Webface)} & \multicolumn{5}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &   Af &   As &    C &    I &      Gl &   Af &   As &    C &    I \\
+\midrule
+Baseline       &              0.15 & 0.21 & 0.18 & 0.28 & 0.24 &    0.25 & 0.24 & 0.25 & 0.26 & 0.25 \\
+FSN \citep{terhorst2020scorenormalization}            &              0.15 & 0.21 & 0.18 & 0.27 & 0.24 &    0.25 & 0.25 & 0.25 & 0.26 & 0.25 \\
+FairCal (Ours) &              0.15 & 0.23 & 0.18 & 0.27 & 0.24 &    0.25 & 0.25 & 0.25 & 0.27 & 0.26 \\[2pt]
+\textit{Oracle (Ours) } & \textit{0.14} & \textit{0.22} & \textit{0.18} & \textit{0.25} & \textit{0.24} & \textit{0.23} & \textit{0.25} & \textit{0.25} & \textit{0.25} & 0.24 \\
+\end{tabular}}
+\end{table}

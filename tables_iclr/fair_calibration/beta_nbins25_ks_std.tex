@@ -1,0 +1,14 @@
+\begin{table}
+\caption{Bias in fairness-calibration as measured by the deviations of KS across subgroups in terms of STD (Standard Deviation).}
+\label{table:fair_calibration_ks_std}
+\centering\resizebox{\textwidth}{!}{
+\begin{tabular}{l|cc|cc}
+{} & \multicolumn{2}{c|}{BFW} \\
+{} & FaceNet (Webface) &     ArcFace \\
+\midrule
+Baseline       &        7.13$\pm$ 3.72 &  3.75$\pm$ 0.93 \\
+FSN \citep{terhorst2020scorenormalization}            &        6.82$\pm$ 3.41 &  3.86$\pm$ 0.73 \\
+FairCal (Ours) & \textbf{       6.22$\pm$ 2.57} & \textbf{ 3.29$\pm$ 1.22 }\\[2pt]
+\textit{Oracle (Ours) } & \textit{       5.46$\pm$ 1.41} &  7.65$\pm$ 1.28 \\
+\end{tabular}}
+\end{table}

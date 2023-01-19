@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Global \textbf{accuracy} measured by the AUROC.}
+\label{table:global_performance_beta_auroc}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|cc|cc|cc|cc}
+ & \multicolumn{2}{c}{BFW} \\
+ & FaceNet (Webface) &      ArcFace \\
+\midrule
+Baseline       &      81.73$\pm$ 13.58 &  57.98$\pm$ 6.75 \\
+FSN \citep{terhorst2020scorenormalization}            &      81.55$\pm$ 13.68 & \textbf{ 58.18$\pm$ 6.94 }\\
+FairCal (Ours) & \textbf{     82.25$\pm$ 12.69} &  57.78$\pm$ 6.70 \\[2pt]
+\textit{Oracle (Ours) } & \textit{      87.16$\pm$ 8.27} &  60.48$\pm$ 6.68 \\
+\end{tabular}}
+\end{table}

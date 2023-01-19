@@ -1,0 +1,15 @@
+\begin{table}
+\caption{ECE on all the pairs (Global (Gl)) and on each gender subgroup (Females (F), Males (M)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_ece_g}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{3}{c|}{FaceNet (Webface)} & \multicolumn{3}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &     F &     M &      Gl &     F &    M \\
+\midrule
+Baseline       &             12.65 & 14.61 & 16.60 &    8.72 & 14.95 & 6.78 \\
+FSN \citep{terhorst2020scorenormalization}            &             12.35 & 14.19 & 16.44 &    8.71 & 14.84 & 6.90 \\
+FairCal (Ours) &             12.06 & 15.02 & 16.86 &    8.07 & 13.85 & 9.08 \\[2pt]
+\textit{Oracle (Ours) } & \textit{12.37} & \textit{15.66} & \textit{17.33} & \textit{9.86} & \textit{16.55} & 6.12 \\
+\end{tabular}}
+\end{table}

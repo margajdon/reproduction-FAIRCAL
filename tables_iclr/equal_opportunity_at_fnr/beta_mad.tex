@@ -1,0 +1,18 @@
+\begin{table}
+\caption{\textbf{Equal opportunity:} Each block of rows represents a choice of global FNR: 0.1\% and 1\%. For a fixed a global FNR, compare the deviations in subgroup FNRs in terms of MAD (Maximum Absolute Deviation). We report the average and standard deviation error across the 5 folds.}
+\label{table:equal_opportunity_at_fpr_beta_mad}
+\centering\resizebox{\textwidth}{!}{
+\begin{tabular}{ll|cc|cc}
+   &               & \multicolumn{2}{c|}{BFW} \\
+   &               & FaceNet (Webface) &     ArcFace \\
+\midrule
+\multirow{4}{*}{\rotatebox{90}{0.1\% FPR}} & Baseline & \textbf{       0.27$\pm$ 0.05} & \textbf{ 0.20$\pm$ 0.10 }\\
+   & FSN &        0.45$\pm$ 0.20 &  0.21$\pm$ 0.06 \\
+   & \textbf{FairCal (Ours)} &        0.28$\pm$ 0.04 &  0.54$\pm$ 0.15 \\[2pt]
+   & Oracle (Ours) &        0.46$\pm$ 0.13 &  0.61$\pm$ 0.14 \\
+\midrule\multirow{4}{*}{\rotatebox{90}{1\% FPR}} & Baseline &        2.08$\pm$ 1.06 & \textbf{ 1.43$\pm$ 0.49 }\\
+   & \textit{FSN} & \textit{       3.49$\pm$ 1.92} &  1.48$\pm$ 0.46 \\
+   & \textbf{FairCal (Ours)} & \textbf{       1.71$\pm$ 0.57} &  3.29$\pm$ 0.82 \\[2pt]
+   & Oracle (Ours) &        2.86$\pm$ 0.39 &  6.16$\pm$ 0.81 \\
+\end{tabular}}
+\end{table}

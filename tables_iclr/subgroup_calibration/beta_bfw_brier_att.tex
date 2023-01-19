@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Brier Score on all the pairs (Global (Gl)) and on each ethnicity and gender subgroup (African Females (AfF), African Males (AfM), Asian Females (AsF), Asian Males (AsM), Caucasian Females (CF), Caucasian Males (CM), Indian Females (IF), Indian Males (IM)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_brier_att}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{9}{c|}{FaceNet (Webface)} & \multicolumn{9}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &  AfF &  AfM &  AsF &  AsM &   CF &   CM &   IF &   IM &      Gl &  AfF &  AfM &  AsF &  AsM &   CF &   CM &   IF &   IM \\
+\midrule
+Baseline       &              0.15 & 0.22 & 0.24 & 0.19 & 0.20 & 0.33 & 0.26 & 0.25 & 0.27 &    0.25 & 0.25 & 0.24 & 0.26 & 0.24 & 0.26 & 0.26 & 0.24 & 0.26 \\
+FSN \citep{terhorst2020scorenormalization}            &              0.15 & 0.23 & 0.24 & 0.19 & 0.20 & 0.33 & 0.24 & 0.26 & 0.27 &    0.25 & 0.26 & 0.24 & 0.26 & 0.24 & 0.26 & 0.26 & 0.24 & 0.26 \\
+FairCal (Ours) &              0.15 & 0.24 & 0.26 & 0.18 & 0.21 & 0.33 & 0.25 & 0.26 & 0.28 &    0.25 & 0.26 & 0.24 & 0.26 & 0.24 & 0.27 & 0.27 & 0.25 & 0.26 \\[2pt]
+\textit{Oracle (Ours) } & \textit{0.14} & \textit{0.23} & \textit{0.25} & \textit{0.18} & \textit{0.21} & \textit{0.3} & \textit{0.21} & \textit{0.25} & \textit{0.27} & \textit{0.24} & \textit{0.28} & \textit{0.26} & \textit{0.27} & \textit{0.25} & \textit{0.25} & \textit{0.25} & \textit{0.23} & 0.25 \\
+\end{tabular}}
+\end{table}

@@ -5,7 +5,6 @@ import os
 import time
 from tqdm import tqdm
 import pandas as pd
-pd.options.mode.chained_assignment = None
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
@@ -63,32 +62,28 @@ def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_
 
 
 def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
-                    score_normalization, fpr, embedding_data):
+                    score_normalization, fpr):
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if os.path.exists(saveto):
         os.remove(saveto)
     prepare_dir(saveto)
     np.save(saveto, {})
+    embeddings = None
     if dataset_name == 'rfw':
-        embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
+        embeddings = collect_embeddings_rfw(feature, db_fold['cal'])
     elif 'bfw' in dataset_name:
-        embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
-    start = time.time()
+        embeddings = collect_embeddings_bfw(feature, db_fold['cal'])
     kmeans = KMeans(n_clusters=n_clusters)
     kmeans.fit(embeddings)
-    print(f'kmeans took {time.time()-start}')
     np.save(saveto, kmeans)
 
-    start = time.time()
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold)
     elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
-    print(f'collect_miscellania_bfw took {time.time()-start}')
-    start = time.time()
     scores = r[0]
     ground_truth = r[1]
     clusters = r[2]
@@ -171,9 +166,6 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
                         p[select] += stats[i_cluster]
             confidences[dataset] = confidences[dataset] / p
 
-
-    print(f'rest took {time.time()-start}')
-
     return scores, ground_truth, confidences, fair_scores
 
 
@@ -183,32 +175,53 @@ def find_threshold(scores, ground_truth, fpr_threshold):
     return np.min(thresholds[aux == np.min(aux)])
 
 
-def collect_embeddings_rfw(db_cal, embedding_data):
-    # Collect embeddings of all the images in the calibration set
-    all_embeddings = np.empty((0, 512))
-    embedding_data['embedding'] = embedding_data['embedding'].to_list()
+def collect_embeddings_rfw(feature, db_cal):
+    # collect embeddings of all the images in the calibration set
+    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
+    faces_id_num = []
+    if feature != 'arcface':
+        for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
+            temp = pickle.load(open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
+            select = db_cal['ethnicity'] == subgroup
 
-    # Iterating over subgroup necessary for creating correct image_path string
-    for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-        select = db_cal[db_cal['ethnicity'] == subgroup]
-        select['num1'] = select['num1'].astype('string')
-        select['path1'] = subgroup + '/' + select['id1'] + '/' + select['id1'] + '_000' + select['num1'] + '.jpg'
-        select['num2'] = select['num2'].astype('string')
-        select['path2'] = subgroup + '/' + select['id2'] + '/' + select['id2'] + '_000' + select['num2'] + '.jpg'
+            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+                folder_names = db_cal[select][id_face].values
+                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
+                file_names = file_names.values
+                for folder_name, file_name in zip(folder_names, file_names):
+                    key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
+                    if file_name not in faces_id_num:
+                        embeddings = np.concatenate((embeddings, temp[key]))
+                        faces_id_num.append(file_name)
+    else:
+        temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
+        for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
+            select = db_cal['ethnicity'] == subgroup
 
-        file_names = set(select['path1'].tolist()) | set(select['path2'].tolist())
-        embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
-        embeddings = np.vstack(embeddings)
-        all_embeddings = np.concatenate([all_embeddings, embeddings])
+            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+                folder_names = db_cal[select][id_face].values
+                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
+                file_names = file_names.values
+                for folder_name, file_name in zip(folder_names, file_names):
+                    key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
+                    if file_name not in faces_id_num:
+                        embeddings = np.concatenate((embeddings, temp[key].reshape(1, -1)))
+                        faces_id_num.append(file_name)
 
-    return all_embeddings
+    return embeddings
 
 
-def collect_embeddings_bfw(db_cal, embedding_data):
-    # Collect embeddings of all the images in the calibration set
-    embedding_data['embedding'] = embedding_data['embedding'].to_list()
-    file_names = set(db_cal['path1'].tolist()) | set(db_cal['path2'].tolist())
-    embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
+def collect_embeddings_bfw(feature, db_cal):
+    # collect embeddings of all the images in the calibration set
+    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+    # Ensure temp and bfw.csv agree on the path structure
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
+    temp['embedding'] = temp['embedding'].to_list()
+
+    file_names = pd.concat([db_cal['path1'], db_cal['path2']]).drop_duplicates()
+    embeddings = temp[temp['img_path'].isin(file_names)]['embedding'].to_numpy()
     embeddings = np.vstack(embeddings)
 
     return embeddings
@@ -274,7 +287,7 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold):
     return scores, ground_truth, clusters, cluster_scores
 
 
-def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data):
+def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold):
     # setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
@@ -288,26 +301,35 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
     ground_truth = {}
     cluster_scores = {}
     for dataset in ['cal', 'test']:
-        # consider only pairs that have cosine similarities
-        number_pairs = len(db_fold[dataset][db_fold[dataset][feature].notna()])
-        scores[dataset] = np.zeros(number_pairs)
-        ground_truth[dataset] = np.zeros(number_pairs).astype(bool)
-        cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
+        scores[dataset] = np.zeros(len(db_fold[dataset]))
+        ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
+        cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
+
+    # Process pickle file
+    temp = pickle.load(open(f'embeddings/{feature}_bfw_embeddings.pk', 'rb'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('\\', '/'))
+    temp['img_path'] = temp['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
 
     # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
-    cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
+    temp['i_cluster'] = kmeans.predict(np.vstack(temp['embedding'].to_numpy()))
+    temp = temp.set_index('img_path')
 
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-        # remove image pairs that have missing cosine similarities
-        db2 = db[db[feature].notna()].reset_index(drop=True)
-        scores[dataset] = np.array(db2[feature])
-        ground_truth[dataset] = np.array(db2['same'].astype(bool))
+        scores[dataset] = np.array(db[feature])
+        ground_truth[dataset] = np.array(db['same'].astype(bool))
 
-        db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
-        db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
-
-        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
+        pb = tqdm(total=len(db))
+        for i in range(len(db)):
+            t = 0
+            for path in ['path1', 'path2']:
+                key = db[path].iloc[i]
+                try:
+                    cluster_scores[dataset][i, t] = temp.loc[key]['i_cluster']
+                except:
+                    pass
+                t += 1
+            pb.update()
+        pb.close()
 
     return scores, ground_truth, clusters, cluster_scores

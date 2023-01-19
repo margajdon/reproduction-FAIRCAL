@@ -1,0 +1,19 @@
+\begin{table}
+\caption{Equal opportunity (equal FNR) at different global FNRs across across the sensitive subgroups.}
+\label{table:equal_opportunity_at_fnr_beta}
+\centering\resizebox{\textwidth}{!}{
+\begin{tabular}{ll|ccc|ccc|ccc|ccc}
+   &               & \multicolumn{6}{c|}{BFW} \\
+   &               & \multicolumn{3}{c}{FaceNet (Webface)} & \multicolumn{3}{c|}{ArcFace} \\
+   &               &               AAD &  MAD &  STD &     AAD &  MAD &  STD \\
+\midrule
+\multirow{4}{*}{\rotatebox{90}{0.1\% FNR}} & Baseline & \textbf{0.1} & \textbf{0.27} & \textbf{0.12} & \textbf{0.08} & \textbf{0.2} & \textbf{0.1}\\
+   & FSN \citep{terhorst2020scorenormalization} &              0.13 & 0.45 & 0.19 &    0.08 & 0.21 & 0.10 \\
+   & FairCal (Ours) &              0.11 & 0.28 & 0.13 &    0.14 & 0.54 & 0.21 \\
+   & Oracle (Ours) &              0.14 & 0.46 & 0.19 &    0.17 & 0.61 & 0.24 \\
+\midrule\multirow{4}{*}{\rotatebox{90}{1\% FNR}} & Baseline &              0.83 & 2.08 & 0.99 &    0.63 & \textbf{1.43} & 0.76 \\
+   & \textit{FSN \citep{terhorst2020scorenormalization}} & \textit{1.01} & \textit{3.49} & \textit{1.42} & \textbf{0.62} & \textit{1.48} & \textbf{0.76}\\
+   & FairCal (Ours) & \textbf{0.74} & \textbf{1.71} & \textbf{0.89} &    1.05 & 3.29 & 1.38 \\
+   & Oracle (Ours) &              1.03 & 2.86 & 1.32 &    1.61 & 6.16 & 2.36 \\
+\end{tabular}}
+\end{table}

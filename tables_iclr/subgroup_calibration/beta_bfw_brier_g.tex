@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Brier Score on all the pairs (Global (Gl)) and on each gender subgroup (Females (F), Males (M)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_brier_g}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{3}{c|}{FaceNet (Webface)} & \multicolumn{3}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &    F &    M &      Gl &    F &    M \\
+\midrule
+Baseline       &              0.15 & 0.19 & 0.19 &    0.25 & 0.25 & 0.25 \\
+FSN \citep{terhorst2020scorenormalization}            &              0.15 & 0.19 & 0.19 &    0.25 & 0.25 & 0.25 \\
+FairCal (Ours) &              0.15 & 0.20 & 0.20 &    0.25 & 0.25 & 0.25 \\[2pt]
+\textit{Oracle (Ours) } & \textit{0.15} & \textit{0.19} & \textit{0.19} & \textit{0.24} & \textit{0.26} & 0.25 \\
+\end{tabular}}
+\end{table}

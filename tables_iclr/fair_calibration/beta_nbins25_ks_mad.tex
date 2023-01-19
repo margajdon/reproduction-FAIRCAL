@@ -1,0 +1,14 @@
+\begin{table}
+\caption{Bias in fairness-calibration as measured by the deviations of KS across subgroups in terms of MAD (Maximum Absolute Deviation).}
+\label{table:fair_calibration_ks_mad}
+\centering\resizebox{\textwidth}{!}{
+\begin{tabular}{l|cc|cc}
+{} & \multicolumn{2}{c|}{BFW} \\
+{} & FaceNet (Webface) &      ArcFace \\
+\midrule
+Baseline       &       13.39$\pm$ 6.79 &   8.72$\pm$ 1.53 \\
+FSN \citep{terhorst2020scorenormalization}            &       13.26$\pm$ 5.89 &   9.03$\pm$ 1.14 \\
+FairCal (Ours) & \textbf{      12.11$\pm$ 4.61} & \textbf{  6.08$\pm$ 2.02 }\\[2pt]
+\textit{Oracle (Ours) } & \textit{       9.94$\pm$ 3.07} &  14.39$\pm$ 2.46 \\
+\end{tabular}}
+\end{table}

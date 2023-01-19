@@ -1,0 +1,15 @@
+\begin{table}
+\caption{ECE on all the pairs (Global (Gl)) and on each ethnicity subgroup (African (Af), Asian (As), Caucasian (Ca), Indian (In)) using beta calibration on the BFW dataset.}
+\label{table:subgroup_calibration_bfw_ece_e}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}|c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}c@{\hskip 4pt}}
+ & \multicolumn{5}{c|}{FaceNet (Webface)} & \multicolumn{5}{c}{ArcFace} \\
+\hfill $(\downarrow)$ &                Gl &    Af &    As &     C &     I &      Gl &    Af &    As &     C &     I \\
+\midrule
+Baseline       &             12.65 & 19.12 & 12.33 & 28.67 & 21.85 &    8.72 & 16.72 & 12.98 &  8.44 &  9.89 \\
+FSN \citep{terhorst2020scorenormalization}            &             12.35 & 19.47 & 12.45 & 26.11 & 22.06 &    8.71 & 17.07 & 13.05 &  8.55 &  9.53 \\
+FairCal (Ours) &             12.06 & 20.24 & 11.23 & 27.59 & 22.99 &    8.07 & 15.52 & 11.39 & 12.19 & 12.57 \\[2pt]
+\textit{Oracle (Ours) } & \textit{12.37} & \textit{21.48} & \textit{11.2} & \textit{26.23} & \textit{24.71} & \textit{7.68} & \textit{18.24} & \textit{13.88} & \textit{1.58} &  7.41 \\
+\end{tabular}}
+\end{table}

@@ -1,0 +1,15 @@
+\begin{table}
+\caption{Global \textbf{accuracy} measured by the TPR at 0.1\% FPR threshold.}
+\label{table:global_performance_beta_1e-3fpr}
+\centering
+\resizebox{\textwidth}{!}{
+\begin{tabular}{l|cc|cc|cc|cc}
+ & \multicolumn{2}{c}{BFW} \\
+ & FaceNet (Webface) &     ArcFace \\
+\midrule
+Baseline       & \textbf{       4.77$\pm$ 5.40} &  0.37$\pm$ 0.48 \\
+FSN \citep{terhorst2020scorenormalization}            &        4.54$\pm$ 4.72 &  0.63$\pm$ 1.03 \\
+FairCal (Ours) &        4.01$\pm$ 3.09 & \textbf{ 0.83$\pm$ 0.78 }\\[2pt]
+\textit{Oracle (Ours) } & \textit{       6.19$\pm$ 4.85} &  3.23$\pm$ 4.35 \\
+\end{tabular}}
+\end{table}
