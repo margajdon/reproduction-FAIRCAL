@@ -36,9 +36,19 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
         }
         sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
     db = db_input.copy()
+    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
+    db['emb_1'] = db['path1'].map(embedding_map)
+    db['emb_2'] = db['path2'].map(embedding_map)
+    keep_cond = (
+        db[feature].notna() &
+        db['emb_1'].notnull() &
+        db['emb_2'].notnull()
+    )
 
     # remove image pairs that have missing cosine similarities
-    db = db[db[feature].notna()].reset_index(drop=True)
+    db = db[keep_cond].reset_index(drop=True)
+
+
     data = {}
 
     # select one of the folds to be the test set
@@ -92,7 +102,9 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
             saveto = ftc_settings_folder + saveto
             torch.save(model.state_dict(), saveto)
         elif approach == 'agenda':
-            fair_scores, confidences, modelM, modelC, modelE = agenda(dataset_name, feature, db_fold, nbins, calibration_method)
+            fair_scores, confidences, modelM, modelC, modelE = agenda(
+                dataset_name, feature, db_fold, nbins, calibration_method, embedding_data
+            )
             saveto = '_'.join(
                 [dataset_name, calibration_method, feature, 'fold', str(fold)])
             saveto = agenda_settings_folder + saveto
@@ -226,8 +238,8 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.calibration_methods = 'beta'
-    args.approaches = 'fsn'
+    args.calibration_methods = 'binning'
+    args.approaches = 'agenda'
     args.features = 'facenet-webface'
     args.dataset = 'bfw'
     # args.approaches = 'faircal'

@@ -23,14 +23,17 @@ from approaches_agenda import collect_embeddings_rfw_agenda, collect_embeddings_
 from approaches_agenda import collect_pair_embeddings_rfw, collect_pair_embeddings_bfw, collect_pair_embeddings_ijbc
 
 
-def pass_att(dataset_name, feature, db_fold, nbins, calibration_method):
+def pass_att(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
     
     if dataset_name == 'rfw':
-        embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(feature, db_fold['cal'])
+        embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(
+            feature, db_fold['cal'], embedding_data
+        )
     elif 'bfw' in dataset_name:
         embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_bfw_agenda(feature, db_fold['cal'])
     elif 'ijbc' in dataset_name:
         embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_ijbc_agenda(feature, db_fold['cal'])
+
     
     
     subgroup_embeddings = pd.Series(subgroup_embeddings, dtype="category").cat.codes.values
