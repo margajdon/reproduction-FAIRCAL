@@ -12,3 +12,4 @@ resnet100.onnx
 .DS_Store
 embeddings.zip
 similarities.zip
+experiments_copy

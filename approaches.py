@@ -285,7 +285,7 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
         scores[dataset] = np.zeros(number_pairs)
         ground_truth[dataset] = np.zeros(number_pairs).astype(bool)
         cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
-        cluster_scores[dataset].fill(np.nan)
+        # cluster_scores[dataset].fill(np.nan)
 
     # Predict kmeans
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
@@ -313,5 +313,7 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
 
     assert np.sum(np.isnan(cluster_scores['cal'])) == 0
     assert np.sum(np.isnan(cluster_scores['test'])) == 0
+
+    print(f'{dataset}: {cluster_scores[dataset].shape}')
 
     return scores, ground_truth, clusters, cluster_scores
