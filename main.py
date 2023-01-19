@@ -42,7 +42,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
     data = {}
 
     # select one of the folds to be the test set
-    for i, fold in enumerate([1, 2, 3, 4, 5]):
+    for i_variable, fold in enumerate([1, 2, 3, 4, 5]):
         db_fold = {'cal': db[db['fold'] != fold], 'test': db[db['fold'] == fold]}
 
         scores = {}
@@ -225,9 +225,11 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
+    args.calibration_methods = 'beta'
 
     dataset = args.dataset
     if dataset == 'rfw':
+
         db = pd.read_csv('data/rfw/rfw_w_sim.csv')
         nbins = 10
     elif 'bfw' in dataset:
