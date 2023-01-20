@@ -31,8 +31,8 @@ def load_and_prep_rfw():
     # rfw
     rfw = pd.read_csv('data/rfw/rfw.csv')
     rfw = remove_misclassified_data(rfw)
-    rfw['image_id_1_clean'] = rfw['id1'].map(str) + '_000' + rfw['num1'].map(str)
-    rfw['image_id_2_clean'] = rfw['id2'].map(str) + '_000' + rfw['num2'].map(str)
+    rfw['image_id_1_clean'] = rfw['id1'].astype(str) + '_000' + rfw['num1'].astype(str)
+    rfw['image_id_2_clean'] = rfw['id2'].astype(str) + '_000' + rfw['num2'].astype(str)
     rfw['unique_key'] = rfw['image_id_1_clean'].astype(str) + '_' + rfw['image_id_2_clean'].astype(str)
     assert rfw['unique_key'].unique().shape[0] == rfw.shape[0]
     return rfw
@@ -46,23 +46,25 @@ def clean_cosine_sim_data(df, dataset):
     assert df['unique_key'].unique().shape[0] == df.shape[0]
     return df
 
-dfs = {
-    'bfw': load_and_prep_bfw(),
-    'rfw': load_and_prep_rfw()
-}
-cos_sim_to_change = {
-    'bfw': ['facenet-webface', 'arcface'],
-    'rfw': ['facenet', 'facenet-webface']
-}
 
-for dataset, pretrained_models in cos_sim_to_change.items():
-    for pretrained_model in pretrained_models:
-        current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
-        current_csv = clean_cosine_sim_data(current_csv, dataset)
+if __name__ == '__main__':
+    dfs = {
+        'bfw': load_and_prep_bfw(),
+        'rfw': load_and_prep_rfw()
+    }
+    cos_sim_to_change = {
+        'bfw': ['facenet-webface', 'arcface'],
+        'rfw': ['facenet', 'facenet-webface']
+    }
 
-        similarity_map = dict(zip(current_csv['unique_key'], current_csv['cos_sim']))
-        dfs[dataset][pretrained_model] = dfs[dataset]['unique_key'].map(similarity_map)
+    for dataset, pretrained_models in cos_sim_to_change.items():
+        for pretrained_model in pretrained_models:
+            current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
+            current_csv = clean_cosine_sim_data(current_csv, dataset)
 
-# save files
-dfs['bfw'].to_csv('data/bfw/bfw_w_sims.csv', index=False)
-dfs['rfw'].to_csv('data/rfw/rfw_w_sims.csv', index=False)
+            similarity_map = dict(zip(current_csv['unique_key'], current_csv['cos_sim']))
+            dfs[dataset][pretrained_model] = dfs[dataset]['unique_key'].map(similarity_map)
+
+    # save files
+    dfs['bfw'].to_csv('data/bfw/bfw_w_sims.csv', index=False)
+    dfs['rfw'].to_csv('data/rfw/rfw_w_sims.csv', index=False)
