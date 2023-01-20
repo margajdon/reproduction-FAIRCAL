@@ -19,7 +19,7 @@ def sim_histograms_with_existing_file(filename, model):
     print("Comparing cosine similarity of photo-pair embeddings")
     print(f'Mean: {mean}')
     print(f'Std: {std}')
-    
+
     sims_same = sims[sims["id1"]==sims["id2"]][model].to_numpy()
     sims_diff = sims[sims["id1"]!=sims["id2"]][model].to_numpy()
     plt.hist(sims_same, bins=100, alpha=0.7)
