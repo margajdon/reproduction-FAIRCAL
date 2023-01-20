@@ -82,7 +82,22 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 n_clusters,
                 False,
                 0,
-                embedding_data
+                embedding_data,
+                approach
+            )
+        elif approach == 'gmm-discrete':
+            scores, ground_truth, confidences, fair_scores = cluster_methods(
+                nbins,
+                calibration_method,
+                dataset_name,
+                feature,
+                fold,
+                db_fold,
+                n_clusters,
+                False,
+                0,
+                embedding_data,
+                approach
             )
         elif approach == 'fsn':
             scores, ground_truth, confidences, fair_scores = cluster_methods(
@@ -240,11 +255,9 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
+
     args.calibration_methods = 'beta'
-    # args.approaches = 'agenda'
-    args.features = 'facenet-webface'
     args.dataset = 'bfw'
-    args.approaches = 'faircal'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -264,11 +277,11 @@ def main():
     else:
         features = [args.features]
     if args.approaches == 'all':
-        approaches = ['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        approaches = ['baseline', 'faircal', ]
     else:
         approaches = [args.approaches]
     if args.calibration_methods == 'all':
-        calibration_methods = ['binning', 'isotonic_regression', 'beta']
+        calibration_methods = ['beta']
     else:
         calibration_methods = [args.calibration_methods]
     n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8

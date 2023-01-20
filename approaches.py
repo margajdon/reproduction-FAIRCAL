@@ -8,6 +8,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 
 from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 from sklearn.metrics import roc_curve
 
 from calibration_methods import BinningCalibration
@@ -63,9 +64,10 @@ def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_
 
 
 def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
-                    score_normalization, fpr, embedding_data):
+                    score_normalization, fpr, embedding_data, approach="faircal"):
     # k-means algorithm
-    saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
+    paths = {"faircal":"kmeans", "gmm-discrete":"gmm-discrete"}
+    saveto = f"experiments/{paths[approach]}/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if os.path.exists(saveto):
         os.remove(saveto)
     prepare_dir(saveto)
@@ -75,17 +77,26 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
     print(embeddings.shape)
-    kmeans = KMeans(n_clusters=n_clusters)
-    kmeans.fit(embeddings)
-    np.save(saveto, kmeans)
+
+    clusters = None
+    if approach == 'faircal':
+        clusters = KMeans(n_clusters=n_clusters)            
+    elif approach == 'gmm-discrete':
+        clusters = GaussianMixture(n_clusters=n_clusters)
+    else:
+        raise ValueError(f"Clustering method {approach} not implemented!")
+
+    clusters.fit(embeddings)
+    np.save(saveto, clusters)
 
     start = time.time()
     if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        r = collect_miscellania_rfw(n_clusters, feature, approach, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        r = collect_miscellania_bfw(n_clusters, feature, approach, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
+
     print(f'collect_miscellania_bfw took {time.time()-start}')
     start = time.time()
     scores = r[0]
