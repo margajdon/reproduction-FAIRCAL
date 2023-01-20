@@ -14,6 +14,7 @@ bfw['same'] = bfw['same'].replace([1, 0], [True, False])
 
 # rfw
 rfw = pd.read_csv('data/rfw/rfw.csv')
+rfw['same'] = rfw['same'].replace([1, 0], [True, False])
 
 dfs = {'bfw': bfw,
        'rfw': rfw
