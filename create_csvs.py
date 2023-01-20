@@ -31,8 +31,8 @@ def load_and_prep_rfw():
     # rfw
     rfw = pd.read_csv('data/rfw/rfw.csv')
     rfw = remove_misclassified_data(rfw)
-    rfw['image_id_1_clean'] = rfw['id1'].astype(str) + '_000' + rfw['num1'].astype(str)
-    rfw['image_id_2_clean'] = rfw['id2'].astype(str) + '_000' + rfw['num2'].astype(str)
+    rfw['image_id_1_clean'] = rfw['id1'].astype(str) + '_' + rfw['num1'].astype(str)
+    rfw['image_id_2_clean'] = rfw['id2'].astype(str) + '_' + rfw['num2'].astype(str)
     rfw['unique_key'] = rfw['image_id_1_clean'].astype(str) + '_' + rfw['image_id_2_clean'].astype(str)
     assert rfw['unique_key'].unique().shape[0] == rfw.shape[0]
     return rfw
@@ -50,12 +50,12 @@ def clean_cosine_sim_data(df, dataset):
 if __name__ == '__main__':
     # Load the bfw and rfw files and clean the dataframes
     dfs = {
-        'bfw': load_and_prep_bfw(),
+        # 'bfw': load_and_prep_bfw(),
         'rfw': load_and_prep_rfw()
     }
     # Create a dictionary to loop on the dataset-model pairs
     cos_sim_to_change = {
-        'bfw': ['facenet-webface', 'arcface'],
+        # 'bfw': ['facenet-webface', 'arcface'],
         'rfw': ['facenet', 'facenet-webface']
     }
 
