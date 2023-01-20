@@ -143,6 +143,6 @@ def cos_sim(a, b):
 if __name__ == '__main__':
     start = time.time()
     # main()
-    sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "arcface")
+    sim_histograms_with_existing_file("./data/bfw/bfw_w_sims_test.csv", "arcface")
     sim_histograms("./similarities/arcface_bfw_cosin_sim.csv")
     print(f'Took {round(time.time() - start)} seconds')
