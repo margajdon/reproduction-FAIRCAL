@@ -127,10 +127,6 @@ def get_arcface_model():
     else:
         ctx = mx.gpu(0)
 
-    # Download first image
-    mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/player1.jpg')
-    # Download second image
-    mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/player2.jpg')
     # Download onnx model
     mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/resnet100.onnx')
     # Path to ONNX model

@@ -85,7 +85,7 @@ class ImageManager:
 		return img_names
 
 	@staticmethod
-	def load_all_images(img_names):
+	def load_image_batch(img_names):
 		"""
 		Load all images specified in img_names as np array
 		"""
@@ -221,7 +221,6 @@ class EmbeddingGenerator(ImageManager):
 		else:
 			raise ValueError('Unrecognised model!')
 
-
 	def preprocess(self, imgs):
 		""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
 			and a data frame containing details of the skipped images. """
@@ -270,7 +269,7 @@ class EmbeddingGenerator(ImageManager):
 
 	def get_embedding_batch(self, img_names):
 
-		imgs = self.load_all_images(img_names)
+		imgs = self.load_image_batch(img_names)
 		imgs, img_names, skipped_df = self.preprocess(imgs)
 
 		print("\nGenerating embeddings...")
