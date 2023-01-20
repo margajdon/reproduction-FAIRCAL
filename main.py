@@ -277,7 +277,8 @@ def main():
     else:
         features = [args.features]
     if args.approaches == 'all':
-        approaches = ['baseline', 'faircal', ]
+        # approaches = ['baseline', 'faircal']
+        approaches = ['gmm-discrete']
     else:
         approaches = [args.approaches]
     if args.calibration_methods == 'all':
