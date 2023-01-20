@@ -248,6 +248,9 @@ class EmbeddingGenerator(ImageManager):
 
 		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
 
+
+		print(f'Successful: {len(imgs_processed)}, unsuccessful: {skipped_df.shape[0]}')
+
 		return imgs_processed, img_names, skipped_df
 
 	def facenet_embedding_loop(self, imgs):

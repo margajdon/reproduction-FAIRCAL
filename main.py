@@ -1,3 +1,5 @@
+import itertools
+
 import pandas as pd
 import numpy as np
 import os
@@ -33,13 +35,6 @@ class DataLoader:
         saveto = f"{experiments_folder}{folder_name}/{file_name}.npy"
         return saveto
 
-    @staticmethod
-    def create_folder(path):
-        try:
-            path = path.replace('//', '/')
-            os.mkdir(path)
-        except OSError as e:
-            return None
 
 class MeasuresCollector:
     @staticmethod
@@ -73,26 +68,41 @@ class MeasuresCollector:
         ece, ks, brier = compute_scores(confidences[select], ground_truth[select], nbins)
         return fpr, tpr, thresholds, ece, ks, brier
 
-
-
 class Analyzer(DataLoader, MeasuresCollector):
-
-    def __init__(self):
+    def __init__(self, dataset, features, calibration_methods, approaches):
+        self.dataset = dataset
+        self.features = features
+        self.calibration_methods = calibration_methods
+        self.approaches = approaches
+        self.data_path, self.nbins, self.subgroups, self.sensitive_attributes = self.set_up(dataset)
         self.collection_methods = {
             'b_fsn_ftc': self.collect_measures_baseline_or_fsn_or_ftc,
             'bmc_oracel': self.collect_measures_bmc_or_oracle
         }
 
-
-    def gather_results(self, dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, approach, calibration_method, embedding_data):
-        db = None
-        subgroups = None
-        sensitive_attributes = None
-
-        db = db_input.copy()
-        if dataset_name == 'rfw':
+    def set_up(self, dataset):
+        if dataset == 'rfw':
+            data_path = 'data/rfw/rfw_w_sims.csv'
+            nbins = 10
             subgroups = {'ethnicity': ['African', 'Asian', 'Caucasian', 'Indian']}
             sensitive_attributes = {'ethnicity': ['ethnicity', 'ethnicity']}
+        elif dataset == 'bfw':
+            data_path = 'data/bfw/bfw_w_sims.csv'
+            nbins = 25
+            subgroups = {
+                'e': ['B', 'A', 'W', 'I'],
+                'g': ['F', 'M'],
+                'att': ['asian_females', 'asian_males', 'black_males', 'black_females', 'white_females', 'white_males',
+                        'indian_females', 'indian_males']
+            }
+            sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
+        else:
+            raise ValueError(f'Unrecognised dataset {dataset}')
+
+        return data_path, nbins, subgroups, sensitive_attributes
+
+    def prep_data(self, db, dataset_name, embedding_data, feature):
+        if dataset_name == 'rfw':
             db['image_id_1_clean'] = db['id1'].map(str) + '_000' + db['num1'].map(str)
             db['image_id_2_clean'] = db['id2'].map(str) + '_000' + db['num2'].map(str)
             embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
@@ -104,17 +114,18 @@ class Analyzer(DataLoader, MeasuresCollector):
                     db['emb_2'].notnull()
             )
         elif dataset_name == 'bfw':
-            subgroups = {
-                'e': ['B', 'A', 'W', 'I'],
-                'g': ['F', 'M'],
-                'att': ['asian_females', 'asian_males', 'black_males', 'black_females', 'white_females', 'white_males',
-                        'indian_females', 'indian_males']
-            }
-            sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
             keep_cond = db[feature].notna()
+        else:
+            raise ValueError(f'Unrecognized dataset_name: {dataset_name}')
 
         # remove image pairs that have missing cosine similarities
-        db = db[keep_cond].reset_index(drop=True)
+        return db[keep_cond].reset_index(drop=True)
+
+    def gather_results(self, db_input, embedding_data, n_cluster, fpr_thr, feature, approach, calibration_method):
+        dataset_name = self.dataset
+        nbins = self.nbins
+
+        db = self.prep_data(db_input, dataset_name, embedding_data, feature)
 
         data = {}
 
@@ -128,10 +139,11 @@ class Analyzer(DataLoader, MeasuresCollector):
                 scores[dataset] = np.array(db_fold[dataset][feature])
                 ground_truth[dataset] = np.array(db_fold[dataset]['same'])
                 subgroup_scores[dataset] = {}
-                for att in subgroups.keys():
-                    subgroup_scores[dataset][att] = {}
-                    subgroup_scores[dataset][att]['left'] = np.array(db_fold[dataset][sensitive_attributes[att][0]])
-                    subgroup_scores[dataset][att]['right'] = np.array(db_fold[dataset][sensitive_attributes[att][1]])
+                for att in self.subgroups.keys():
+                    subgroup_scores[dataset][att] = {
+                        'left': np.array(db_fold[dataset][self.sensitive_attributes[att][0]]),
+                        'right': np.array(db_fold[dataset][self.sensitive_attributes[att][1]])
+                    }
 
             if approach == 'baseline':
                 confidences = baseline(scores, ground_truth, nbins, calibration_method)
@@ -143,7 +155,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                     feature,
                     fold,
                     db_fold,
-                    n_clusters,
+                    n_cluster,
                     False,
                     0,
                     embedding_data
@@ -156,7 +168,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                     feature,
                     fold,
                     db_fold,
-                    n_clusters,
+                    n_cluster,
                     True,
                     fpr_thr,
                     embedding_data
@@ -178,7 +190,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                 torch.save(modelC.state_dict(), saveto+'_modelC')
                 torch.save(modelE.state_dict(), saveto+'_modelE')
             elif approach == 'oracle':
-                confidences = oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_method)
+                confidences = oracle(scores, ground_truth, subgroup_scores, self.subgroups, nbins, calibration_method)
             else:
                 raise ValueError('Approach %s not available.' % approach)
 
@@ -190,7 +202,7 @@ class Analyzer(DataLoader, MeasuresCollector):
             ks = {}
             brier = {}
 
-            for att in subgroups.keys():
+            for att in self.subgroups.keys():
                 fpr[att] = {}
                 tpr[att] = {}
                 thresholds[att] = {}
@@ -198,7 +210,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                 ks[att] = {}
                 brier[att] = {}
 
-                for j, subgroup in enumerate(subgroups[att]+['Global']):
+                for j, subgroup in enumerate(self.subgroups[att]+['Global']):
 
                     if approach in ('baseline', 'faircal', 'oracle'):
                         score_to_report = scores['test']
@@ -241,25 +253,9 @@ class Analyzer(DataLoader, MeasuresCollector):
 
         return data
 
-    def main():
-        args = parser.parse_args()
-        db = None
-        args.calibration_methods = 'beta'
-        # args.approaches = 'agenda'
-        args.features = 'facenet-webface'
-        args.dataset = 'bfw'
-        args.approaches = 'faircal'
-
-        dataset = args.dataset
-        if dataset == 'rfw':
-            db = pd.read_csv('data/rfw/rfw_w_sims.csv')
-            nbins = 10
-        elif 'bfw' in dataset:
-            db = pd.read_csv('data/bfw/bfw_w_sims.csv')
-            nbins = 25
-
-        create_folder(f"{experiments_folder}/{dataset}")
-
+    def main(self):
+        dataset = self.dataset
+        db = pd.read_csv(self.data_path)
         if args.features == 'all':
             if args.dataset == 'rfw':
                 features = ['facenet', 'facenet-webface']
@@ -277,53 +273,40 @@ class Analyzer(DataLoader, MeasuresCollector):
             calibration_methods = [args.calibration_methods]
         n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
         fpr_thr_list = [1e-3]
-        for n_cluster in n_clusters:
-            for fpr_thr in fpr_thr_list:
-                print('fpr_thr: %.0e' % fpr_thr)
-                for feature in features:
-                    create_folder(f"{experiments_folder}/{dataset}/{feature}")
-                    print('Feature: %s' % feature)
-                    for approach in approaches:
-                        create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
-                        print('   Approach: %s' % approach)
-                        for calibration_method in calibration_methods:
-                            create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
-                            print('      Calibration Method: %s' % calibration_method)
-                            if 'faircal' in approach:
-                                print('         number clusters: %d' % n_cluster)
-                            elif 'fsn' in approach:
-                                print('         number clusters: %d' % n_cluster)
-                            saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
-                                                    fpr_thr)
-                            if os.path.exists(saveto):
-                                os.remove(saveto)
-                            prepare_dir(saveto)
-                            np.save(saveto, {})
 
-                            # Load embedding data and preprocess
-                            embedding_data = pickle.load(open(f'embeddings/{feature}_{dataset}_embeddings.pk', 'rb'))
-                            if dataset == 'bfw':
-                                embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
-                            if dataset == 'rfw':
-                                embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
-                            data = gather_results(
-                                dataset,
-                                db,
-                                nbins,
-                                n_cluster,
-                                fpr_thr,
-                                feature,
-                                approach,
-                                calibration_method,
-                                embedding_data
-                            )
-                            np.save(saveto, data)
+        for to_unpack in itertools.product(n_clusters, fpr_thr_list, features, approaches, calibration_methods):
+            n_cluster, fpr_thr, feature, approach, calibration_method = to_unpack
+            print('fpr_thr: %.0e' % fpr_thr)
+            print('Feature: %s' % feature)
+            print('   Approach: %s' % approach)
+            print('   Approach: %s' % approach)
+            print('      Calibration Method: %s' % calibration_method)
+            if approach in ('faircal', 'fsn'):
+                print('         number clusters: %d' % n_cluster)
+
+            saveto = self.file_name_save(
+                dataset, feature, approach, calibration_method, self.nbins, n_cluster, fpr_thr
+            )
+            if os.path.exists(saveto):
+                os.remove(saveto)
+            prepare_dir(saveto)
+            np.save(saveto, {})
+
+            # Load embedding data and preprocess
+            embedding_data = pickle.load(open(f'embeddings/{feature}_{dataset}_embeddings.pk', 'rb'))
+            if dataset == 'bfw':
+                embedding_data['img_path'] = embedding_data['img_path'].apply(
+                    lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
+            if dataset == 'rfw':
+                embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
+            data = self.gather_results(
+                db, embedding_data, n_cluster, fpr_thr, feature, approach, calibration_method
+            )
+            np.save(saveto, data)
 
 
 if __name__ == '__main__':
-
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
         '--dataset', type=str,
         help='name of dataset',
@@ -348,7 +331,11 @@ if __name__ == '__main__':
         choices=['binning', 'isotonic_regression', 'beta', 'all'],
         default='all')
 
+    args = parser.parse_args()
+    args.calibration_methods = 'binning'
+    args.features = 'facenet-webface'
+    args.dataset = 'bfw'
+    args.approaches = 'faircal'
 
-
-    analyzer = Analyzer()
+    analyzer = Analyzer(args.dataset, args.features, args.calibration_methods, args.approaches)
     analyzer.main()

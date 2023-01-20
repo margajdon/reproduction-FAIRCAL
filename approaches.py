@@ -63,7 +63,7 @@ def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_
 
 
 def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
-                    score_normalization, fpr, embedding_data):
+                    score_normalization, fpr, embedding_data, km_random_state=42):
     # k-means algorithm
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if os.path.exists(saveto):
@@ -75,7 +75,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
     print(embeddings.shape)
-    kmeans = KMeans(n_clusters=n_clusters)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=km_random_state)
     kmeans.fit(embeddings)
     np.save(saveto, kmeans)
 
@@ -248,44 +248,6 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
 
         cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
-
-
-    # if feature != 'arcface':
-    #     subgroup_old = ''
-    #     temp = None
-    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-    #         scores[dataset] = np.array(db[feature])
-    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
-    #         for i in range(len(db)):
-    #             subgroup = db['ethnicity'].iloc[i]
-    #             if subgroup != subgroup_old:
-    #                 temp = pickle.load(
-    #                     open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
-    #             subgroup_old = subgroup
-    #
-    #             t = 0
-    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-    #                 folder_name = db[id_face].iloc[i]
-    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
-    #                 key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
-    #                 i_cluster = kmeans.predict(temp[key])[0]
-    #                 cluster_scores[dataset][i, t] = i_cluster
-    #                 t += 1
-    # else:
-    #     temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
-    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-    #         scores[dataset] = np.array(db[feature])
-    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
-    #         for i in range(len(db)):
-    #             subgroup = db['ethnicity'].iloc[i]
-    #             t = 0
-    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-    #                 folder_name = db[id_face].iloc[i]
-    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
-    #                 key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
-    #                 i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
-    #                 cluster_scores[dataset][i, t] = i_cluster
-    #                 t += 1
 
     return scores, ground_truth, clusters, cluster_scores
 
