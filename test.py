@@ -100,8 +100,8 @@ def cos_sim(a, b):
 
 if __name__ == '__main__':
     start = time.time()
-    # sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "arcface")
-    # sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "facenet-webface")
+    sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "arcface")
+    sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "facenet-webface")
 
     sim_histograms_with_existing_file("./data/rfw/rfw_w_sims.csv", "facenet")
     sim_histograms_with_existing_file("./data/rfw/rfw_w_sims.csv", "facenet-webface")
