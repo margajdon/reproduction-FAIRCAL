@@ -118,14 +118,14 @@ class ImageManager:
 		skipped = []
 		# filter by shape
 		print("\nFiltering images based on shape...")
-		img_shapes = []
+		# img_shapes = []
 		for img_name, img in tqdm(imgs.items(), total=len(imgs)):
-			img_shapes.append(img.size)
-		print(set(img_shapes))
+		# 	img_shapes.append(img.size)
+		# print(set(img_shapes))
+		#
+		# pd.DataFrame({'shapes': img_shapes})['shapes'].value_counts()
 
-		pd.DataFrame({'shapes': img_shapes})['shapes'].value_counts()
-
-
+			pass
 			# if img.size != filter_img_shape:
 			# 	img_details = self.get_img_details(img_name)
 			# 	img_details["reason"] = f"Expected shape {filter_img_shape}, got {img.size}"
@@ -229,8 +229,8 @@ class EmbeddingGenerator(ImageManager):
 		elif self.model_str == "facenet-webface":
 			self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 		elif self.model_str == "arcface":
-			self.model = None
-			# self.model = get_arcface_model()
+			# self.model = None
+			self.model = get_arcface_model()
 		else:
 			raise ValueError('Unrecognised model!')
 
