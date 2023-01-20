@@ -50,12 +50,12 @@ def clean_cosine_sim_data(df, dataset):
 if __name__ == '__main__':
     # Load the bfw and rfw files and clean the dataframes
     dfs = {
-        # 'bfw': load_and_prep_bfw(),
+        'bfw': load_and_prep_bfw(),
         'rfw': load_and_prep_rfw()
     }
     # Create a dictionary to loop on the dataset-model pairs
     cos_sim_to_change = {
-        # 'bfw': ['facenet-webface', 'arcface'],
+        'bfw': ['facenet-webface', 'arcface'],
         'rfw': ['facenet', 'facenet-webface']
     }
 
