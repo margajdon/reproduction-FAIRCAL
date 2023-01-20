@@ -10,13 +10,14 @@ bfw = bfw.rename(columns={
     'resnet50': 'facenet',
     'senet50': 'arcface'
 })
-bfw['same'] = bfw['same'].replace([1, 0], [True, False])
+bfw['same'] = bfw['same'].map({0: False, 1: True})
 
 # rfw
 rfw = pd.read_csv('data/rfw/rfw.csv')
 
-dfs = {'bfw': bfw,
-       'rfw': rfw
+dfs = {
+    'bfw': bfw,
+    'rfw': rfw
 }
 cos_sim_to_change = {
     'bfw': ['facenet-webface', 'arcface'],

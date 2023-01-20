@@ -64,6 +64,8 @@ parser.add_argument('--cpu', action='store_true')
 class ImageManager:
 	af_mtcnn_det = None
 	limit_images = None
+	data_folder = "data"
+	bfw_dataset_type = 'uncropped-face-samples'
 	filter_img_shape_map = {
 		"bfw": (108, 124),
 		"rfw": (400, 400)
@@ -74,12 +76,15 @@ class ImageManager:
 		Get all image names (with full paths) from dataset directory
 		"""
 		img_names = []
-		for path, subdirs, files in os.walk(os.path.join(data_folder, dataset)):
+		for path, subdirs, files in os.walk(os.path.join(self.data_folder, dataset)):
+			if self.bfw_dataset_type not in path:
+				continue
 			for name in files:
 				if ".jpg" in name:
 					img_names.append(os.path.join(path, name))
 
 		img_names = img_names[:self.limit_images]
+		print(set([i[:25] for i in img_names]))
 
 		print(f"{len(img_names)} images found! (manual limit = {self.limit_images})")
 		return img_names
@@ -113,11 +118,18 @@ class ImageManager:
 		skipped = []
 		# filter by shape
 		print("\nFiltering images based on shape...")
+		img_shapes = []
 		for img_name, img in tqdm(imgs.items(), total=len(imgs)):
-			if img.size != filter_img_shape:
-				img_details = self.get_img_details(img_name)
-				img_details["reason"] = f"Expected shape {filter_img_shape}, got {img.size}"
-				skipped.append(img_details)
+			img_shapes.append(img.size)
+		print(set(img_shapes))
+
+		pd.DataFrame({'shapes': img_shapes})['shapes'].value_counts()
+
+
+			# if img.size != filter_img_shape:
+			# 	img_details = self.get_img_details(img_name)
+			# 	img_details["reason"] = f"Expected shape {filter_img_shape}, got {img.size}"
+			# 	skipped.append(img_details)
 
 		for item in skipped:
 			del imgs[item["img_path"]]
@@ -217,7 +229,8 @@ class EmbeddingGenerator(ImageManager):
 		elif self.model_str == "facenet-webface":
 			self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 		elif self.model_str == "arcface":
-			self.model = get_arcface_model()
+			self.model = None
+			# self.model = get_arcface_model()
 		else:
 			raise ValueError('Unrecognised model!')
 
@@ -352,7 +365,6 @@ if __name__ == '__main__':
 	start = time.time()
 
 	# Data directories
-	data_folder = "data"
 	embeddings_folder = "embeddings"
 
 	# Parse arguments
