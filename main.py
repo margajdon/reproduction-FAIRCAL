@@ -186,6 +186,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                 saveto = '_'.join(
                     [dataset_name, calibration_method, feature, 'fold', str(fold)])
                 saveto = agenda_settings_folder + saveto
+                prepare_dir(saveto)
                 torch.save(modelM.state_dict(), saveto+'_modelM')
                 torch.save(modelC.state_dict(), saveto+'_modelC')
                 torch.save(modelE.state_dict(), saveto+'_modelE')
@@ -332,10 +333,10 @@ if __name__ == '__main__':
         default='all')
 
     args = parser.parse_args()
-    args.calibration_methods = 'binning'
-    args.features = 'facenet-webface'
-    args.dataset = 'bfw'
-    args.approaches = 'faircal'
+    # args.calibration_methods = 'isotonic_regression'
+    # args.features = 'facenet-webface'
+    # args.dataset = 'bfw'
+    # args.approaches = 'faircal'
 
     analyzer = Analyzer(args.dataset, args.features, args.calibration_methods, args.approaches)
     analyzer.main()
