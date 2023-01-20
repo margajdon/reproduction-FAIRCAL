@@ -48,15 +48,18 @@ def clean_cosine_sim_data(df, dataset):
 
 
 if __name__ == '__main__':
+    # Load the bfw and rfw files and clean the dataframes
     dfs = {
         'bfw': load_and_prep_bfw(),
         'rfw': load_and_prep_rfw()
     }
+    # Create a dictionary to loop on the dataset-model pairs
     cos_sim_to_change = {
         'bfw': ['facenet-webface', 'arcface'],
         'rfw': ['facenet', 'facenet-webface']
     }
 
+    # Add the cosine similarity column of each model to rfw and bfw
     for dataset, pretrained_models in cos_sim_to_change.items():
         for pretrained_model in pretrained_models:
             current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
@@ -65,6 +68,6 @@ if __name__ == '__main__':
             similarity_map = dict(zip(current_csv['unique_key'], current_csv['cos_sim']))
             dfs[dataset][pretrained_model] = dfs[dataset]['unique_key'].map(similarity_map)
 
-    # save files
+    # Output the bfw and rfw files with the cosine similarities for the models
     dfs['bfw'].to_csv('data/bfw/bfw_w_sims.csv', index=False)
     dfs['rfw'].to_csv('data/rfw/rfw_w_sims.csv', index=False)
