@@ -24,8 +24,8 @@ def sim_histograms(filename):
     
 
 
-    sims_same = sims[sims["image_id_1_clean"]==sims["image_id_2_clean"]]["cos_sim"].to_numpy()
-    sims_diff = sims[sims["image_id_1_clean"]!=sims["image_id_2_clean"]]["cos_sim"].to_numpy()
+    sims_same = sims[sims["id1"]==sims["id2"]]["cos_sim"].to_numpy()
+    sims_diff = sims[sims["id1"]!=sims["id2"]]["cos_sim"].to_numpy()
     axs[0].hist(sims_same, bins=100, alpha=0.7)
     axs[0].hist(sims_diff, bins=100, alpha=0.7)
 
@@ -33,7 +33,7 @@ def sim_histograms(filename):
     axs[0].set_xlabel("Cosine similarity")
     axs[0].set_ylabel("frequency")
     axs[0].legend(handletextpad=.0, handlelength=0)
-    axs[0].set_title('["image_id_1_clean"]==sims["image_id_2_clean"]')
+    axs[0].set_title('sims["id1"]==sims["id2"]')
 
 
 
@@ -143,6 +143,6 @@ def cos_sim(a, b):
 if __name__ == '__main__':
     start = time.time()
     # main()
-    # sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "arcface")
+    sim_histograms_with_existing_file("./data/bfw/bfw_w_sims.csv", "arcface")
     sim_histograms("./similarities/arcface_bfw_cosin_sim.csv")
     print(f'Took {round(time.time() - start)} seconds')
