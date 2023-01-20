@@ -78,22 +78,23 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
     print(embeddings.shape)
 
-    clusters = None
+    cluster_method = None
     if approach == 'faircal':
-        clusters = KMeans(n_clusters=n_clusters)            
+        cluster_method = KMeans(n_clusters=n_clusters)            
     elif approach == 'gmm-discrete':
-        clusters = GaussianMixture(n_clusters=n_clusters)
+        cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
 
-    clusters.fit(embeddings)
-    np.save(saveto, clusters)
+    cluster_method.fit(embeddings)
+    np.save(saveto, cluster_method)
+    print("Finished clustering")
 
     start = time.time()
     if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, approach, db_fold, embedding_data)
+        r = collect_miscellania_rfw(n_clusters, feature, cluster_method, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, approach, db_fold, embedding_data)
+        r = collect_miscellania_bfw(n_clusters, feature, cluster_method, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
 

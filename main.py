@@ -167,6 +167,15 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup_scores['test'][att],
                         subgroup
                     )
+                elif 'gmm-discrete' in approach:
+                    r = collect_measures_bmc_or_oracle(
+                        ground_truth['test'],
+                        scores['test'],
+                        confidences['test'],
+                        nbins,
+                        subgroup_scores['test'][att],
+                        subgroup
+                    )
                 elif 'fsn' in approach:
                     r = collect_measures_baseline_or_fsn_or_ftc(
                         ground_truth['test'],
@@ -257,7 +266,7 @@ def main():
     db = None
 
     args.calibration_methods = 'beta'
-    args.dataset = 'bfw'
+    args.dataset = 'rfw'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -285,7 +294,7 @@ def main():
         calibration_methods = ['beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+    n_clusters = [30] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
@@ -364,7 +373,7 @@ def collect_measures_baseline_or_fsn_or_ftc(ground_truth, scores, confidences, n
 
 def file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster, fpr_thr):
     folder_name = '/'.join([dataset, feature, approach, calibration_method])
-    if 'faircal' in approach:
+    if 'faircal' in approach or 'gmm-discrete' in approach:
         file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster)])
     elif 'fsn' in approach:
         file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster), 'fpr', format(fpr_thr, '.0e')])
