@@ -260,6 +260,8 @@ class EmbeddingGenerator(ImageManager):
 
 		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
 
+		print(f'Successful: {len(imgs_processed)}, unsuccessful: {skipped_df.shape[0]}')
+
 		return imgs_processed, img_names, skipped_df
 
 	def facenet_embedding_loop(self, imgs):
@@ -371,7 +373,7 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	args.img_prep = 'arcface'
 	args.model = 'arcface'
-	args.incremental = 100
+	args.incremental = 50
 
 	# Determine the device
 	device = determine_device(args.cpu)
