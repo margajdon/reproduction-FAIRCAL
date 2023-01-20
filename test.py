@@ -33,7 +33,7 @@ def sim_histograms(filename):
     axs[0].set_xlabel("Cosine similarity")
     axs[0].set_ylabel("frequency")
     axs[0].legend(handletextpad=.0, handlelength=0)
-    axs[0].set_title('["image_id_1_clean"]!=sims["image_id_2_clean"]')
+    axs[0].set_title('["image_id_1_clean"]==sims["image_id_2_clean"]')
 
 
 
@@ -48,7 +48,7 @@ def sim_histograms(filename):
     axs[1].legend(handletextpad=.0, handlelength=0)
     axs[1].set_title('sims["label"]==1')
 
-    
+
     plt.show()
 
 def sim_histograms_with_existing_file(filename, model):
