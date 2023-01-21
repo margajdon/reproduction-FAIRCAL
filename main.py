@@ -242,10 +242,10 @@ def main():
     args = parser.parse_args()
     db = None
     args.calibration_methods = 'beta'
-    # args.approaches = 'agenda'
+    args.approaches = 'agenda'
     args.features = 'facenet-webface'
     args.dataset = 'bfw'
-    args.approaches = 'faircal'
+    # args.approaches = 'faircal'
 
     dataset = args.dataset
     if dataset == 'rfw':

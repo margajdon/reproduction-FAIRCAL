@@ -80,15 +80,13 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     kmeans.fit(embeddings)
     np.save(saveto, kmeans)
 
-    start = time.time()
     if dataset_name == 'rfw':
         r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
         r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
-    print(f'collect_miscellania_bfw took {time.time()-start}')
-    start = time.time()
+
     scores = r[0]
     ground_truth = r[1]
     clusters = r[2]

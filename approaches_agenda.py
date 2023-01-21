@@ -21,17 +21,6 @@ from approaches import find_threshold
 
 
 def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
-    
-    # if dataset_name == 'rfw':
-    #     embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(
-    #         feature, db_fold['cal'], embedding_data
-    #     )
-    # elif 'bfw' in dataset_name:
-    #     embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_bfw_agenda(
-    #         feature, db_fold['cal'], embedding_data
-    #     )
-
-
 
     df_all = pd.concat(list(db_fold.values()), ignore_index=True)
     all_images = set(df_all['path1']) | set(df_all['path2'])
@@ -54,12 +43,6 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
     subgroup_embeddings = pd.Series(df_all3['att'], dtype="category").cat.codes.values
     embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
         = train_test_split(np.vstack(df_all3['embedding'].to_numpy()), df_all3['id'], subgroup_embeddings, test_size=0.2)
-
-    # subgroup_embeddings = pd.Series(subgroup_embeddings, dtype="category").cat.codes.values
-    # embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
-    #     = train_test_split(embeddings,id_embeddings,subgroup_embeddings, test_size=0.2)
-
-
 
 
     id_train = pd.Series(id_train, dtype="category").cat.codes.values
