@@ -75,10 +75,6 @@ class Analyzer(DataLoader, MeasuresCollector):
         self.calibration_methods = calibration_methods
         self.approaches = approaches
         self.data_path, self.nbins, self.subgroups, self.sensitive_attributes = self.set_up(dataset)
-        self.collection_methods = {
-            'b_fsn_ftc': self.collect_measures_baseline_or_fsn_or_ftc,
-            'bmc_oracel': self.collect_measures_bmc_or_oracle
-        }
 
     def set_up(self, dataset):
         if dataset == 'rfw':
