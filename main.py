@@ -216,14 +216,14 @@ class Analyzer(DataLoader, MeasuresCollector):
                     if approach in ('baseline', 'faircal', 'oracle'):
                         score_to_report = scores['test']
                     elif approach in ('fsn', 'ftc', 'agenda'):
-                        score_to_report = scores['test']
+                        score_to_report = fair_scores['test']
                     else:
                         raise ValueError('Approach %s not available.' % approach)
 
                     if approach in ('baseline', 'fsn', 'ftc', 'agenda'):
-                        collection_method = 'b_fsn_ftc'
+                        collection_method = self.collect_measures_baseline_or_fsn_or_ftc
                     elif approach in ('faircal', 'oracle'):
-                        collection_method = 'b_fsn_ftc'
+                        collection_method = self.collect_measures_bmc_or_oracle
                     else:
                         raise ValueError('Approach %s not available.' % approach)
 
