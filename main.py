@@ -294,7 +294,7 @@ def main():
         calibration_methods = ['beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [30] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
