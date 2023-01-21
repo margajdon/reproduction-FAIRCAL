@@ -20,47 +20,74 @@ from tqdm import tqdm
 from approaches import find_threshold
 
 
-def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
-    
-    # if dataset_name == 'rfw':
-    #     embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(
-    #         feature, db_fold['cal'], embedding_data
-    #     )
-    # elif 'bfw' in dataset_name:
-    #     embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_bfw_agenda(
-    #         feature, db_fold['cal'], embedding_data
-    #     )
+def new_collect_embeddings_rfw_agenda(db_cal, embedding_data):
+
+    all_images = set(db_cal['image_id_1_clean']) | set(db_cal['image_id_2_clean'])
+    df_all_images = pd.DataFrame([{'image_id': p} for p in all_images])
+    embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
 
 
-
-    df_all = pd.concat(list(db_fold.values()), ignore_index=True)
-    all_images = set(df_all['path1']) | set(df_all['path2'])
-    df_all2 = pd.DataFrame([{'img_path': p} for p in all_images])
-    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
     subgroup_map = {
-        **dict(zip(df_all['path1'], df_all['att1'])),
-        **dict(zip(df_all['path2'], df_all['att2'])),
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['ethnicity'])),
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['ethnicity'])),
     }
     id_map = {
-        **dict(zip(df_all['path1'], df_all['id1'])),
-        **dict(zip(df_all['path2'], df_all['id2'])),
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['id1'])),
+
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['id2'])),
     }
-    df_all2['embedding'] = df_all2['img_path'].map(embedding_map)
-    df_all3 = df_all2[df_all2['embedding'].notnull()].reset_index(drop=True)
+    df_all_images['embedding'] = df_all_images['image_id'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
 
-    df_all3['att'] = df_all3['img_path'].map(subgroup_map)
-    df_all3['id'] = df_all3['img_path'].map(id_map)
+    df_all_images['att'] = df_all_images['image_id'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['image_id'].map(id_map)
 
-    subgroup_embeddings = pd.Series(df_all3['att'], dtype="category").cat.codes.values
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['id']
+
+    return embeddings, subgroup_embeddings, id_embeddings
+
+
+def new_collect_embeddings_bfw_agenda(db_cal, embedding_data):
+
+    all_images = set(db_cal['path1']) | set(db_cal['path2'])
+    df_all_images = pd.DataFrame([{'img_path': p} for p in all_images])
+    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
+
+
+    subgroup_map = {
+        **dict(zip(db_cal['path1'], db_cal['att1'])),
+        **dict(zip(db_cal['path2'], db_cal['att2'])),
+    }
+    id_map = {
+        **dict(zip(db_cal['path1'], db_cal['id1'])),
+        **dict(zip(db_cal['path2'], db_cal['id2'])),
+    }
+    df_all_images['embedding'] = df_all_images['img_path'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
+
+    df_all_images['att'] = df_all_images['img_path'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['img_path'].map(id_map)
+
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['img_path']
+
+    return embeddings, subgroup_embeddings, id_embeddings
+
+
+def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
+
+    if dataset_name == 'rfw':
+        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_rfw_agenda(db_fold['cal'], embedding_data)
+    elif 'bfw' in dataset_name:
+        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_bfw_agenda(db_fold['cal'], embedding_data)
+    else:
+        raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
+
     embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
-        = train_test_split(np.vstack(df_all3['embedding'].to_numpy()), df_all3['id'], subgroup_embeddings, test_size=0.2)
-
-    # subgroup_embeddings = pd.Series(subgroup_embeddings, dtype="category").cat.codes.values
-    # embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
-    #     = train_test_split(embeddings,id_embeddings,subgroup_embeddings, test_size=0.2)
-
-
-
+        = train_test_split(embeddings, id_embeddings, subgroup_embeddings, test_size=0.2)
 
     id_train = pd.Series(id_train, dtype="category").cat.codes.values
     id_test = pd.Series(id_test, dtype="category").cat.codes.values

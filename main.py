@@ -231,7 +231,7 @@ class Analyzer(DataLoader, MeasuresCollector):
                         'subgroup_scores': subgroup_scores['test'][att],
                         'subgroup': subgroup
                     }
-                    r = self.collection_methods[collection_method](**value_dic)
+                    r = collection_method(**value_dic)
                     fpr[att][subgroup] = r[0]
                     tpr[att][subgroup] = r[1]
                     thresholds[att][subgroup] = r[2]
@@ -332,8 +332,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.calibration_methods = 'beta'
     args.features = 'facenet-webface'
-    args.dataset = 'rfw'
-    args.approaches = 'faircal'
+    args.dataset = 'bfw'
+    args.approaches = 'agenda'
 
     analyzer = Analyzer(args.dataset, args.features, args.calibration_methods, args.approaches)
     analyzer.main()
