@@ -247,7 +247,9 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
         db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
 
-        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
+        if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
+            print('Warning: There should not be nans in the cluster columns.')
+        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
 
     return scores, ground_truth, clusters, cluster_scores
 
@@ -286,7 +288,9 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
         db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
 
-        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
+        if db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
+            print('Warning: There should not be nans in the cluster columns.')
+        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
         print(f'{dataset}: {cluster_scores[dataset].shape}')
 
     return scores, ground_truth, clusters, cluster_scores

@@ -272,7 +272,8 @@ class Analyzer(DataLoader, MeasuresCollector):
             calibration_methods = ['binning', 'isotonic_regression', 'beta']
         else:
             calibration_methods = [args.calibration_methods]
-        n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+        n_clusters = [100]  # [500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1]
+        # #n_clusters = 100 was used in the tables on page 8
         fpr_thr_list = [1e-3]
 
         for to_unpack in itertools.product(n_clusters, fpr_thr_list, features, approaches, calibration_methods):
@@ -333,10 +334,10 @@ if __name__ == '__main__':
         default='all')
 
     args = parser.parse_args()
-    # args.calibration_methods = 'isotonic_regression'
-    # args.features = 'facenet-webface'
-    # args.dataset = 'bfw'
-    # args.approaches = 'faircal'
+    args.calibration_methods = 'beta'
+    args.features = 'facenet-webface'
+    args.dataset = 'rfw'
+    args.approaches = 'faircal'
 
     analyzer = Analyzer(args.dataset, args.features, args.calibration_methods, args.approaches)
     analyzer.main()
