@@ -243,8 +243,8 @@ def main():
     db = None
     args.calibration_methods = 'beta'
     args.approaches = 'agenda'
-    args.features = 'facenet-webface'
-    args.dataset = 'bfw'
+    args.features = 'facenet'
+    args.dataset = 'rfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset
@@ -254,6 +254,10 @@ def main():
     elif 'bfw' in dataset:
         db = pd.read_csv('data/bfw/bfw_w_sims.csv')
         nbins = 25
+
+    # Print out how many comparisons are possible for each model
+    for c in ('facenet', 'facenet-webface', 'arcface'):
+        print(f'{c}: {db[c].notnull().sum()} pairs available, {db[c].isnull().sum()} cosine sim missing.')
 
     create_folder(f"{experiments_folder}/{dataset}")
 

@@ -21,8 +21,6 @@ def sim_histograms(filename):
     print(f'Std: {std}')
 
     fig, axs = plt.subplots(1,2)
-    
-
 
     sims_same = sims[sims["id1"]==sims["id2"]]["cos_sim"].to_numpy()
     sims_diff = sims[sims["id1"]!=sims["id2"]]["cos_sim"].to_numpy()
