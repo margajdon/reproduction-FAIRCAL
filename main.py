@@ -110,6 +110,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
             saveto = '_'.join(
                 [dataset_name, calibration_method, feature, 'fold', str(fold)])
             saveto = agenda_settings_folder + saveto
+            prepare_dir(saveto)
             torch.save(modelM.state_dict(), saveto+'_modelM')
             torch.save(modelC.state_dict(), saveto+'_modelC')
             torch.save(modelE.state_dict(), saveto+'_modelE')
