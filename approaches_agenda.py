@@ -20,43 +20,75 @@ from tqdm import tqdm
 from approaches import find_threshold
 
 
-def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
-    # Retrieve the calibration (train) dataset
-    db_cal = db_fold['cal']
 
-    # Create a dataframe with all the images that have an embedding.
-    if dataset_name == 'rfw':
-        unique_key1 = 'image_id_1_clean'
-        unique_key2 = 'image_id_2_clean'
-    elif dataset_name == 'bfw':
-        unique_key1 = 'path1'
-        unique_key2 = 'path2'
-    else:
-        raise ValueError(f'Unrecognized dataset_name: {dataset_name}')
+def new_collect_embeddings_rfw_agenda(db_cal, embedding_data):
 
-    cal_images = set(db_cal[unique_key1]) | set(db_cal[unique_key2])
-    df_cal_images = pd.DataFrame([{'img_path': p} for p in cal_images])
+    all_images = set(db_cal['image_id_1_clean']) | set(db_cal['image_id_2_clean'])
+    df_all_images = pd.DataFrame([{'image_id': p} for p in all_images])
+    embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
+
+
+    subgroup_map = {
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['ethnicity'])),
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['ethnicity'])),
+    }
+    id_map = {
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['id1'])),
+
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['id2'])),
+    }
+    df_all_images['embedding'] = df_all_images['image_id'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
+
+    df_all_images['att'] = df_all_images['image_id'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['image_id'].map(id_map)
+
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['id']
+
+    return embeddings, subgroup_embeddings, id_embeddings
+
+
+def new_collect_embeddings_bfw_agenda(db_cal, embedding_data):
+
+    all_images = set(db_cal['path1']) | set(db_cal['path2'])
+    df_all_images = pd.DataFrame([{'img_path': p} for p in all_images])
     embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
 
-    df_cal_images['embedding'] = df_cal_images['img_path'].map(embedding_map)
 
-    # Remove nans
-    df_cal_images = df_cal_images[df_cal_images['embedding'].notnull()].reset_index(drop=True)
+    subgroup_map = {
+        **dict(zip(db_cal['path1'], db_cal['att1'])),
+        **dict(zip(db_cal['path2'], db_cal['att2'])),
+    }
+    id_map = {
+        **dict(zip(db_cal['path1'], db_cal['id1'])),
+        **dict(zip(db_cal['path2'], db_cal['id2'])),
+    }
+    df_all_images['embedding'] = df_all_images['img_path'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
 
-    # Map the subgroup
-    if dataset_name == 'bfw':
-        subgroup_map = {**dict(zip(db_cal[unique_key1], db_cal['att1'])), **dict(zip(db_cal[unique_key2], db_cal['att2']))}
-        df_cal_images['att'] = df_cal_images['img_path'].map(subgroup_map)
+    df_all_images['att'] = df_all_images['img_path'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['img_path'].map(id_map)
 
-    # Map the id
-    id_map = {**dict(zip(db_cal[unique_key1], db_cal['id1'])), **dict(zip(db_cal[unique_key2], db_cal['id2']))}
-    df_cal_images['id'] = df_cal_images['img_path'].map(id_map)
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['img_path']
+
+    return embeddings, subgroup_embeddings, id_embeddings
 
 
-    subgroup_embeddings = pd.Series(df_cal_images['att'], dtype="category").cat.codes.values
-    embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test = train_test_split(
-        np.vstack(df_cal_images['embedding'].to_numpy()), df_cal_images['id'], subgroup_embeddings, test_size=0.2
-    )
+def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
+
+    if dataset_name == 'rfw':
+        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_rfw_agenda(db_fold['cal'], embedding_data)
+    elif 'bfw' in dataset_name:
+        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_bfw_agenda(db_fold['cal'], embedding_data)
+    else:
+        raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
+
+    embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
+        = train_test_split(embeddings, id_embeddings, subgroup_embeddings, test_size=0.2)
 
     id_train = pd.Series(id_train, dtype="category").cat.codes.values
     id_test = pd.Series(id_test, dtype="category").cat.codes.values
@@ -203,11 +235,11 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
     for dataset in ['cal', 'test']:
         if dataset_name == 'rfw':
             embeddings, ground_truth[dataset], subgroups_left, subgroups_right = collect_pair_embeddings_rfw(
-                feature, db_fold[dataset], embedding_data
+                feature, db_fold[dataset]
             )
         elif 'bfw' in dataset_name:
             embeddings, ground_truth[dataset], subgroups_left, subgroups_right = collect_pair_embeddings_bfw(
-                feature, db_fold[dataset], embedding_data
+                feature, db_fold[dataset],
             )
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         modelM.eval()
@@ -343,12 +375,11 @@ def collect_embeddings_bfw_agenda(feature, db_cal):
     return embeddings, subgroup_embeddings, id_embeddings
 
 
-def collect_pair_embeddings_rfw(feature, db_cal):
 
+def collect_pair_embeddings_rfw(feature, db_cal, embedding_data):
     embeddings = {'left': torch.zeros((len(db_cal), 512)), 'right': torch.zeros((len(db_cal), 512))}
     ground_truth = np.array(db_cal['same']).astype(bool)
     subgroups = np.array(db_cal['ethnicity'])
-
     if feature != 'arcface':
 
         subgroup_old = ''
@@ -371,7 +402,6 @@ def collect_pair_embeddings_rfw(feature, db_cal):
                     embeddings['right'][i, :] = temp[key]
                 i += 1
     else:
-
         temp = pickle.load(open('raw_data/embeddings/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
 
         for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
