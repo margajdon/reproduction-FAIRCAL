@@ -20,70 +20,12 @@ from tqdm import tqdm
 from approaches import find_threshold
 
 
-
-def new_collect_embeddings_rfw_agenda(db_cal, embedding_data):
-
-    all_images = set(db_cal['image_id_1_clean']) | set(db_cal['image_id_2_clean'])
-    df_all_images = pd.DataFrame([{'image_id': p} for p in all_images])
-    embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
-
-
-    subgroup_map = {
-        **dict(zip(db_cal['image_id_1_clean'], db_cal['ethnicity'])),
-        **dict(zip(db_cal['image_id_2_clean'], db_cal['ethnicity'])),
-    }
-    id_map = {
-        **dict(zip(db_cal['image_id_1_clean'], db_cal['id1'])),
-
-        **dict(zip(db_cal['image_id_2_clean'], db_cal['id2'])),
-    }
-    df_all_images['embedding'] = df_all_images['image_id'].map(embedding_map)
-    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
-
-    df_all_images['att'] = df_all_images['image_id'].map(subgroup_map)
-    df_all_images['id'] = df_all_images['image_id'].map(id_map)
-
-    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
-    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
-    id_embeddings = df_all_images['id']
-
-    return embeddings, subgroup_embeddings, id_embeddings
-
-
-def new_collect_embeddings_bfw_agenda(db_cal, embedding_data):
-
-    all_images = set(db_cal['path1']) | set(db_cal['path2'])
-    df_all_images = pd.DataFrame([{'img_path': p} for p in all_images])
-    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
-
-
-    subgroup_map = {
-        **dict(zip(db_cal['path1'], db_cal['att1'])),
-        **dict(zip(db_cal['path2'], db_cal['att2'])),
-    }
-    id_map = {
-        **dict(zip(db_cal['path1'], db_cal['id1'])),
-        **dict(zip(db_cal['path2'], db_cal['id2'])),
-    }
-    df_all_images['embedding'] = df_all_images['img_path'].map(embedding_map)
-    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
-
-    df_all_images['att'] = df_all_images['img_path'].map(subgroup_map)
-    df_all_images['id'] = df_all_images['img_path'].map(id_map)
-
-    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
-    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
-    id_embeddings = df_all_images['img_path']
-
-    return embeddings, subgroup_embeddings, id_embeddings
-
-
 def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
 
     if dataset_name == 'rfw':
-        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_rfw_agenda(db_fold['cal'], embedding_data)
+        embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
-        embeddings, subgroup_embeddings, id_embeddings = new_collect_embeddings_bfw_agenda(db_fold['cal'], embedding_data)
+        embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_bfw_agenda(db_fold['cal'], embedding_data)
     else:
         raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
 
@@ -142,8 +84,10 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
             loss.backward()
             optimizer_stage1.step()
 
+    ## STAGE 2 ##
+    print(f"STAGE 2")
     for i in tqdm(range(Nep)):
-        ## STAGE 2 ##
+
         if i % Tep == 0:
             if torch.cuda.is_available():
                 modelE = NeuralNetworkE(n_subgroup).cuda()
@@ -313,70 +257,56 @@ class NeuralNetworkE(nn.Module):
         return self.model(x)
 
 
-def collect_embeddings_rfw_agenda(feature, db_cal):
-    # collect embeddings of all the images in the calibration set
-    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    faces_id_num = []
-    subgroup_embeddings = []
-    id_embeddings = []
-    if feature != 'arcface':
-        for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-            temp = pickle.load(open('raw_data/embeddings/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
-            select = db_cal['ethnicity'] == subgroup
+def collect_embeddings_rfw_agenda(db_cal, embedding_data):
+    all_images = set(db_cal['image_id_1_clean']) | set(db_cal['image_id_2_clean'])
+    df_all_images = pd.DataFrame([{'image_id': p} for p in all_images])
+    embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
 
-            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                folder_names = db_cal[select][id_face].values
-                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
-                file_names = file_names.values
-                for folder_name, file_name, id_embedding in zip(folder_names, file_names, db_cal[select][id_face].values):
-                    key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
-                    if file_name not in faces_id_num:
-                        embeddings = np.concatenate((embeddings, temp[key]))
-                        faces_id_num.append(file_name)
-                        subgroup_embeddings.append(subgroup)
-                        id_embeddings.append(id_embedding)
-    else:
-        temp = pickle.load(open('raw_data/embeddings/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
-        for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-            select = db_cal['ethnicity'] == subgroup
+    subgroup_map = {
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['ethnicity'])),
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['ethnicity'])),
+    }
+    id_map = {
+        **dict(zip(db_cal['image_id_1_clean'], db_cal['id1'])),
+        **dict(zip(db_cal['image_id_2_clean'], db_cal['id2'])),
+    }
+    df_all_images['embedding'] = df_all_images['image_id'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
 
-            for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-                folder_names = db_cal[select][id_face].values
-                file_names = db_cal[select][id_face] + '_000' + db_cal[select][num_face].astype(str) + '.jpg'
-                file_names = file_names.values
-                for folder_name, file_name, id_embedding in zip(folder_names, file_names, db_cal[select][id_face].values):
-                    key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
-                    if file_name not in faces_id_num:
-                        embeddings = np.concatenate((embeddings, temp[key].reshape(1, -1)))
-                        faces_id_num.append(file_name)
-                        subgroup_embeddings.append(subgroup)
-                        id_embeddings.append(id_embedding)
-    subgroup_embeddings = np.array(subgroup_embeddings)
-    id_embeddings = np.array(id_embeddings)
-    return embeddings, subgroup_embeddings, id_embeddings
+    df_all_images['att'] = df_all_images['image_id'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['image_id'].map(id_map)
 
-
-def collect_embeddings_bfw_agenda(feature, db_cal):
-    # collect embeddings of all the images in the calibration set
-    embeddings = np.zeros((0, 512))  # all embeddings are in a 512-dimensional space
-    subgroup_embeddings = []
-    id_embeddings = []
-
-    file_names_visited = []
-    temp = pickle.load(open('raw_data/embeddings/bfw/' + feature + '_embeddings.pickle', 'rb'))
-    for path, att, id_name in zip(['path1', 'path2'],['att1', 'att2'], ['id1', 'id2']):
-        file_names = db_cal[path].values
-        subgroups = db_cal[att].values
-        ids = db_cal[id_name].values
-        for file_name, subgroup, id_embedding in zip(file_names, subgroups, ids):
-            if file_name not in file_names_visited:
-                embeddings = np.concatenate((embeddings, temp[file_name].reshape(1, -1)))
-                file_names_visited.append(file_name)
-                subgroup_embeddings.append(subgroup)
-                id_embeddings.append(id_embedding)
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['id']
 
     return embeddings, subgroup_embeddings, id_embeddings
 
+
+def collect_embeddings_bfw_agenda(db_cal, embedding_data):
+    all_images = set(db_cal['path1']) | set(db_cal['path2'])
+    df_all_images = pd.DataFrame([{'img_path': p} for p in all_images])
+    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
+
+    subgroup_map = {
+        **dict(zip(db_cal['path1'], db_cal['att1'])),
+        **dict(zip(db_cal['path2'], db_cal['att2'])),
+    }
+    id_map = {
+        **dict(zip(db_cal['path1'], db_cal['id1'])),
+        **dict(zip(db_cal['path2'], db_cal['id2'])),
+    }
+    df_all_images['embedding'] = df_all_images['img_path'].map(embedding_map)
+    df_all_images = df_all_images[df_all_images['embedding'].notnull()].reset_index(drop=True)
+
+    df_all_images['att'] = df_all_images['img_path'].map(subgroup_map)
+    df_all_images['id'] = df_all_images['img_path'].map(id_map)
+
+    embeddings = np.vstack(df_all_images['embedding'].to_numpy())
+    subgroup_embeddings = pd.Series(df_all_images['att'], dtype="category").cat.codes.values
+    id_embeddings = df_all_images['img_path']
+
+    return embeddings, subgroup_embeddings, id_embeddings
 
 def collect_pair_embeddings_rfw(db_cal):
     embeddings = {

@@ -257,9 +257,9 @@ def main():
     args = parser.parse_args()
     db = None
     args.calibration_methods = 'beta'
-    args.approaches = 'agenda'
+    args.approaches = 'ftc'
     args.features = 'facenet-webface'
-    args.dataset = 'bfw'
+    args.dataset = 'rfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset
@@ -271,6 +271,7 @@ def main():
         nbins = 25
 
     # Print out how many comparisons are possible for each model
+    print(dataset)
     for c in ('facenet', 'facenet-webface', 'arcface'):
         print(f'{c}: {db[c].notnull().sum()} pairs available, {db[c].isnull().sum()} cosine sim missing.')
 
