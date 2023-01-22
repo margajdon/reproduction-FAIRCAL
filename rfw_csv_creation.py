@@ -13,7 +13,7 @@ def extract_pairs_txt(file_path, group):
     df.loc[cond, 'num2'] = df.loc[cond, 'id2']
     df.loc[cond, 'id2'] = df.loc[cond, 'id1']
     df['ethnicity'] = group
-    df['pair'] = 'Ungenuine'
+    df['pair'] = 'Imposter'
     df['pair'].loc[cond] = 'Genuine'
     df['same'] = cond
     df['fold'] = df.index.map(lambda x: x // 600)

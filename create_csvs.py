@@ -1,3 +1,5 @@
+import pickle
+
 import pandas as pd
 
 def remove_misclassified_data(df):
@@ -62,7 +64,7 @@ if __name__ == '__main__':
     # Add the cosine similarity column of each model to rfw and bfw
     for dataset, pretrained_models in cos_sim_to_change.items():
         for pretrained_model in pretrained_models:
-            current_csv = pd.read_csv('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.csv')
+            current_csv = pickle.load(open('similarities/' + pretrained_model + '_' + dataset + '_cosin_sim.pk', 'rb'))
             current_csv = clean_cosine_sim_data(current_csv, dataset)
 
             similarity_map = dict(zip(current_csv['unique_key'], current_csv['cos_sim']))

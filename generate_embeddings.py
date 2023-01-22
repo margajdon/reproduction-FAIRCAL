@@ -148,7 +148,38 @@ class ImageManager:
 
 		return imgs_processed, img_names, skipped_no_face
 
+
+
 	def arcface_img_prep(self, all_imgs, img_names, skipped_no_face):
+		print("\nMTCNN pipeline prep! (this might take a while...)")
+		mtcnn = MTCNN(image_size=112)
+		imgs_processed = mtcnn(all_imgs)
+		del all_imgs
+		torch.cuda.empty_cache()
+		# remove images without faces
+		print("\nFiltering images based on face detection...")
+
+		for img_name, img in tqdm(zip(img_names, imgs_processed), total=len(imgs_processed)):
+			if img is None:
+				img_details = self.get_img_details(img_name)
+				img_details["reason"] = "Could not find face"
+				skipped_no_face.append(img_details)
+
+		imgs_processed = [x for x in imgs_processed if x is not None]
+
+		# cleaning up
+		for item in skipped_no_face:
+			img_names.remove(item["img_path"])
+
+		return imgs_processed, img_names, skipped_no_face
+
+	def old_arcface_img_prep(self, all_imgs, img_names, skipped_no_face):
+		"""
+		This method uses the MTCNN detector from Arcface rather than the one
+		from facenet py
+
+
+		"""
 		print("\nArcface pipeline prep! (this might take a while...)")
 		detector = self.get_mtcnn_det_for_arcface()
 		imgs_processed = []
@@ -204,7 +235,7 @@ class EmbeddingGenerator(ImageManager):
 		self.limit_images = limit_images
 		self.img_prep_map = {
 			'mtcnn': self.mtcnn_img_prep,
-			'arcface': self.arcface_img_prep,
+			'arcface': self.new_arcface_img_prep,
 			'vanilla': self.vanilla_img_prep,
 		}
 		self.embedding_func = {
@@ -217,6 +248,7 @@ class EmbeddingGenerator(ImageManager):
 		elif self.model_str == "facenet-webface":
 			self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 		elif self.model_str == "arcface":
+			# self.model = None
 			self.model = get_arcface_model()
 		else:
 			raise ValueError('Unrecognised model!')
@@ -239,14 +271,21 @@ class EmbeddingGenerator(ImageManager):
 		del imgs
 		torch.cuda.empty_cache()
 
-		if self.img_prep in self.img_prep_map:
-			imgs_processed, img_names, skipped_no_face = self.img_prep_map[self.img_prep](
-				all_imgs, img_names, skipped_no_face
-			)
+		if all_imgs:
+
+			if self.img_prep in self.img_prep_map:
+				imgs_processed, img_names, skipped_no_face = self.img_prep_map[self.img_prep](
+					all_imgs, img_names, skipped_no_face
+				)
+			else:
+				raise KeyError('Unrecognised image prep key!')
 		else:
-			raise KeyError('Unrecognised image prep key!')
+			# Handles cases when no images passed the shape filtering
+			skipped_no_face = []
 
 		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
+
+		print(f'Successful: {len(imgs_processed)}, unsuccessful: {skipped_df.shape[0]}')
 
 		return imgs_processed, img_names, skipped_df
 
@@ -321,13 +360,13 @@ class EmbeddingGenerator(ImageManager):
 		return embeddings_df, skipped_df
 
 
-def save_outputs(data_to_save, embeddings_folder, model, dataset, limit_images=None):
-	save_str = os.path.join(embeddings_folder, f"{model}_{dataset}")
+def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None):
+	save_str = os.path.join(output_folder, f"{model}_{dataset}")
 	if limit_images is not None:
 		save_str = save_str + f"_limited_{limit_images}"
 	prepare_dir(save_str)
 	for k, df in data_to_save.items():
-		df.to_csv(f"{save_str}_{k}.csv", index=False)
+		# df.to_csv(f"{save_str}_{k}.csv", index=False)
 		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
 	return save_str
 
@@ -358,9 +397,9 @@ if __name__ == '__main__':
 
 	# Parse arguments
 	args = parser.parse_args()
-	args.img_prep = 'arcface'
+	args.img_prep = 'mtcnn'
 	args.model = 'arcface'
-	args.incremental = 100
+	args.incremental = 500
 
 	# Determine the device
 	device = determine_device(args.cpu)

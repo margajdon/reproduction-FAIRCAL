@@ -119,8 +119,6 @@ def get_arcface_model():
         mx.test_utils.download(dirname='mtcnn-model', url='https://s3.amazonaws.com/onnx-model-zoo/arcface/mtcnn-model/det{}.caffemodel'.format(i+1))
         mx.test_utils.download(dirname='mtcnn-model', url='https://s3.amazonaws.com/onnx-model-zoo/arcface/mtcnn-model/det{}.prototxt'.format(i+1))
 
-
-
     # Determine and set context
     if len(mx.test_utils.list_gpus())==0:
         ctx = mx.cpu()
