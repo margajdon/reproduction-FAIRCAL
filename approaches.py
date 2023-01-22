@@ -281,16 +281,16 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         # remove image pairs that have missing cosine similarities
-        db2 = db[db[feature].notna()].reset_index(drop=True)
-        scores[dataset] = np.array(db2[feature])
-        ground_truth[dataset] = np.array(db2['same'].astype(bool))
+        db = db[db[feature].notna()].reset_index(drop=True)
+        scores[dataset] = np.array(db[feature])
+        ground_truth[dataset] = np.array(db['same'].astype(bool))
 
-        db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
-        db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
+        db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
+        db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
 
         if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
             print('Warning: There should not be nans in the cluster columns.')
-        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
+        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
         print(f'{dataset}: {cluster_scores[dataset].shape}')
 
     return scores, ground_truth, clusters, cluster_scores
