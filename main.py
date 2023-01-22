@@ -21,33 +21,48 @@ agenda_settings_folder = 'experiments/agenda_settings/'
 
 
 def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, approach, calibration_method, embedding_data):
-    db = None
-    subgroups = None
-    sensitive_attributes = None
 
     db = db_input.copy()
     if dataset_name == 'rfw':
+        # RFW subgroup
         subgroups = {'ethnicity': ['African', 'Asian', 'Caucasian', 'Indian']}
+        # RFW sensitive attributes
         sensitive_attributes = {'ethnicity': ['ethnicity', 'ethnicity']}
+        # Assigning the embedding to each image
         db['image_id_1_clean'] = db['id1'].map(str) + '_000' + db['num1'].map(str)
         db['image_id_2_clean'] = db['id2'].map(str) + '_000' + db['num2'].map(str)
         embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
         db['emb_1'] = db['image_id_1_clean'].map(embedding_map)
         db['emb_2'] = db['image_id_2_clean'].map(embedding_map)
+        # Create a mask to remove the rows with missing cosine similarity or embedding.
         keep_cond = (
-                db[feature].notna() &
+                db[feature].notnull() &
                 db['emb_1'].notnull() &
                 db['emb_2'].notnull()
         )
     elif dataset_name == 'bfw':
+        # BFW subgroup
         subgroups = {
             'e': ['B', 'A', 'W', 'I'],
             'g': ['F', 'M'],
             'att': ['asian_females', 'asian_males', 'black_males', 'black_females', 'white_females', 'white_males',
                     'indian_females', 'indian_males']
         }
+        # BFW sensitive attributes
         sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
-        keep_cond = db[feature].notna()
+        # Assigning the embedding to each image
+        embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
+        db['emb_1'] = db['path1'].map(embedding_map)
+        db['emb_2'] = db['path2'].map(embedding_map)
+
+        # Create a mask to remove the rows with missing cosine similarity or embedding.
+        keep_cond = (
+                db[feature].notnull() &
+                db['emb_1'].notnull() &
+                db['emb_2'].notnull()
+        )
+    else:
+        raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
 
     # remove image pairs that have missing cosine similarities
     db = db[keep_cond].reset_index(drop=True)
@@ -243,8 +258,8 @@ def main():
     db = None
     args.calibration_methods = 'beta'
     args.approaches = 'agenda'
-    args.features = 'facenet'
-    args.dataset = 'rfw'
+    args.features = 'facenet-webface'
+    args.dataset = 'bfw'
     # args.approaches = 'faircal'
 
     dataset = args.dataset

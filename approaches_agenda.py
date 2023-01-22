@@ -235,12 +235,15 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
     for dataset in ['cal', 'test']:
         if dataset_name == 'rfw':
             embeddings, ground_truth[dataset], subgroups_left, subgroups_right = collect_pair_embeddings_rfw(
-                feature, db_fold[dataset]
+                db_fold[dataset]
             )
         elif 'bfw' in dataset_name:
             embeddings, ground_truth[dataset], subgroups_left, subgroups_right = collect_pair_embeddings_bfw(
-                feature, db_fold[dataset],
+                db_fold[dataset]
             )
+        else:
+            raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
+
         cos = nn.CosineSimilarity(dim=1, eps=1e-6)
         modelM.eval()
         modelM.cpu()
@@ -375,75 +378,23 @@ def collect_embeddings_bfw_agenda(feature, db_cal):
     return embeddings, subgroup_embeddings, id_embeddings
 
 
-
-def collect_pair_embeddings_rfw(feature, db_cal, embedding_data):
-    embeddings = {'left': torch.zeros((len(db_cal), 512)), 'right': torch.zeros((len(db_cal), 512))}
-    ground_truth = np.array(db_cal['same']).astype(bool)
+def collect_pair_embeddings_rfw(db_cal):
+    embeddings = {
+        'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),
+        'right': torch.tensor(np.vstack(db_cal['emb_2'].values))
+    }
+    ground_truth = np.array(db_cal['same'].astype(bool))
     subgroups = np.array(db_cal['ethnicity'])
-    if feature != 'arcface':
-
-        subgroup_old = ''
-        for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-            folder_names = db_cal[id_face].values
-            file_names = db_cal[id_face] + '_000' + db_cal[num_face].astype(str) + '.jpg'
-            file_names = file_names.values
-            i = 0
-            for folder_name, file_name, subgroup in zip(folder_names, file_names, subgroups):
-                if subgroup_old != subgroup:
-                    temp = pickle.load(
-                        open('raw_data/embeddings/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb')
-                    )
-                subgroup_old = subgroup
-
-                key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
-                if id_face == 'id1':
-                    embeddings['left'][i, :] = temp[key]
-                elif id_face == 'id2':
-                    embeddings['right'][i, :] = temp[key]
-                i += 1
-    else:
-        temp = pickle.load(open('raw_data/embeddings/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
-
-        for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
-            folder_names = db_cal[id_face].values
-            file_names = db_cal[id_face] + '_000' + db_cal[num_face].astype(str) + '.jpg'
-            file_names = file_names.values
-            i = 0
-            for folder_name, file_name, subgroup in zip(folder_names, file_names, subgroups):
-                key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
-                if id_face == 'id1':
-                    embeddings['left'][i, :] =  torch.from_numpy(temp[key].reshape(1, -1))
-                elif id_face == 'id2':
-                    embeddings['right'][i, :] = torch.from_numpy(temp[key].reshape(1, -1))
-                i += 1
     return embeddings, ground_truth, subgroups, subgroups
 
 
-def collect_pair_embeddings_bfw(feature, db_cal, embedding_data):
+def collect_pair_embeddings_bfw(db_cal):
     # collect embeddings of all the images in the calibration set
-    embeddings = {'left': torch.zeros((len(db_cal), 512)), 'right': torch.zeros((len(db_cal), 512))}
+    embeddings = {
+        'left': torch.from_numpy(np.vstack(db_cal['emb_1'].values)),
+        'right': torch.from_numpy(np.vstack(db_cal['emb_2'].values)),
+    }
     ground_truth = np.array(db_cal['same'].astype(bool))
     subgroups_left = np.array(db_cal['att1'])
     subgroups_right = np.array(db_cal['att2'])
-
-    embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
-    embeddings = {
-        'left': torch.from_numpy(np.vstack(db_cal['path1'].map(embedding_map).dropna().to_numpy())),
-        'right': torch.from_numpy(np.vstack(db_cal['path2'].map(embedding_map).dropna().to_numpy())),
-    }
-
-    # temp = pickle.load(open('raw_data/embeddings/bfw/' + feature + '_embeddings.pickle', 'rb'))
-    # for path in ['path1', 'path2']:
-    #     file_names = db_cal[path].values
-    #     for i, file_name in enumerate(file_names):
-    #         if path == 'path1':
-    #             if feature == 'arcface':
-    #                 embeddings['left'][i, :] = torch.from_numpy(temp[file_name])
-    #             else:
-    #                 embeddings['left'][i, :] = temp[file_name]
-    #         elif path == 'path2':
-    #             if feature == 'arcface':
-    #                 embeddings['right'][i, :] = torch.from_numpy(temp[file_name])
-    #             else:
-    #                 embeddings['right'][i, :] = temp[file_name]
     return embeddings, ground_truth, subgroups_left, subgroups_right
