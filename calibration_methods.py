@@ -66,6 +66,7 @@ class BinningCalibration():
             scores, ground_truth, self.bin_edges, self.binning_indices)
 
     def predict(self, scores):
+        scores[scores > 1] = 1  # To avoid rounding error
         return self.bin_confidence[np.maximum(np.digitize(scores, self.bin_edges, right=True) - 1, 0)]
 
 

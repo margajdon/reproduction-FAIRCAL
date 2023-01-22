@@ -148,8 +148,6 @@ class ImageManager:
 
 		return imgs_processed, img_names, skipped_no_face
 
-
-
 	def arcface_img_prep(self, all_imgs, img_names, skipped_no_face):
 		print("\nMTCNN pipeline prep! (this might take a while...)")
 		mtcnn = MTCNN(image_size=112)
@@ -248,7 +246,6 @@ class EmbeddingGenerator(ImageManager):
 		elif self.model_str == "facenet-webface":
 			self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 		elif self.model_str == "arcface":
-			# self.model = None
 			self.model = get_arcface_model()
 		else:
 			raise ValueError('Unrecognised model!')
@@ -285,7 +282,8 @@ class EmbeddingGenerator(ImageManager):
 
 		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
 
-		print(f'Successful: {len(imgs_processed)}, unsuccessful: {skipped_df.shape[0]}')
+		print(f'N images with face detected: {len(imgs_processed)}')
+		print(f'N images with face undetected: {skipped_df.shape[0]}')
 
 		return imgs_processed, img_names, skipped_df
 
@@ -397,9 +395,9 @@ if __name__ == '__main__':
 
 	# Parse arguments
 	args = parser.parse_args()
-	args.img_prep = 'mtcnn'
-	args.model = 'arcface'
-	args.incremental = 500
+	# args.img_prep = 'arcface'
+	# args.model = 'arcface'
+	# args.incremental = 100
 
 	# Determine the device
 	device = determine_device(args.cpu)
