@@ -361,9 +361,9 @@ if __name__ == '__main__':
 
 	# Parse arguments
 	args = parser.parse_args()
-	args.img_prep = 'arcface'
-	args.model = 'arcface'
-	args.incremental = 100
+	# args.img_prep = 'arcface'
+	# args.model = 'arcface'
+	# args.incremental = 100
 
 	# Determine the device
 	device = determine_device(args.cpu)

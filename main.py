@@ -256,11 +256,11 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     db = None
-    args.calibration_methods = 'beta'
-    args.approaches = 'ftc'
-    args.features = 'facenet-webface'
-    args.dataset = 'rfw'
-    # args.approaches = 'faircal'
+    # args.calibration_methods = 'beta'
+    # args.approaches = 'ftc'
+    # args.features = 'facenet-webface'
+    # args.dataset = 'rfw'
+    # # args.approaches = 'faircal'
 
     dataset = args.dataset
     if dataset == 'rfw':
