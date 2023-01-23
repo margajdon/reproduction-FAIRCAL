@@ -113,6 +113,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
         stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
 
+    print(stats)
     print('Minimum number of pairs in clusters %d' % (min(stats)))
     print('Maximum number of pairs in clusters %d' % (max(stats)))
     print('Median number of pairs in clusters %1.1f' % (np.median(stats)))
@@ -173,7 +174,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
             confidences[dataset] = np.zeros(len(scores[dataset]))
             p = np.zeros(len(scores[dataset]))
             for i_cluster in range(n_clusters):
-                for t in [0, 1]:
+                for t in [0, 1]: # t = true label?
                     select = cluster_scores[dataset][:, t] == i_cluster
                     aux = scores[dataset][select]
                     if len(aux) > 0:
@@ -247,7 +248,6 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # Predict kmeans
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
-
 
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
@@ -325,6 +325,7 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # Predict kmeans
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
+    # cluster_map <- image path to which cluster it belongs
 
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):

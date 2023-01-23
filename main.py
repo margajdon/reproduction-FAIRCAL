@@ -266,7 +266,7 @@ def main():
     db = None
 
     args.calibration_methods = 'beta'
-    args.dataset = 'rfw'
+    args.dataset = 'bfw'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -286,8 +286,8 @@ def main():
     else:
         features = [args.features]
     if args.approaches == 'all':
-        # approaches = ['baseline', 'faircal']
-        approaches = ['gmm-discrete']
+        approaches = ['baseline', 'faircal']
+        # approaches = ['gmm-discrete']
     else:
         approaches = [args.approaches]
     if args.calibration_methods == 'all':
