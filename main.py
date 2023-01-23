@@ -333,7 +333,7 @@ def main():
                             )
                             print(f'Dataset {dataset}, feature {feature}, approach {approach}: {round(time.time()-start, 3)} seconds')
                             np.save(saveto, data)
-    print(f'All experiments took {round(time.time() - start)} seconds')
+    print(f'All experiments took {round(time.time() - total_start)} seconds')
 
 
 
