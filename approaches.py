@@ -8,7 +8,8 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 
 from sklearn.cluster import KMeans
-from sklearn.mixture import GaussianMixture
+# from sklearn.mixture import GaussianMixture
+from pycave.bayes import GaussianMixture
 from sklearn.metrics import roc_curve
 
 from calibration_methods import BinningCalibration
@@ -80,13 +81,14 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
 
     cluster_method = None
     if approach == 'faircal':
-        cluster_method = KMeans(n_clusters=n_clusters)            
+        cluster_method = KMeans(n_clusters=n_clusters)
     elif approach == 'gmm-discrete':
-        cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
+        cluster_method = GaussianMixture(num_components=n_clusters)
+        # cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
 
-    cluster_method.fit(embeddings)
+    cluster_method.fit(embeddings.astype('float32'))
     np.save(saveto, cluster_method)
     print("Finished clustering")
 
@@ -225,7 +227,7 @@ def collect_embeddings_bfw(db_cal, embedding_data):
     return embeddings
 
 
-def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data):
+def collect_miscellania_rfw(n_clusters, feature, cluster_method, db_fold, embedding_data):
     # setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
@@ -246,7 +248,7 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # collect scores, ground_truth per cluster for the calibration set
 
     # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
+    embedding_data['i_cluster'] = cluster_method.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('float32'))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
@@ -302,7 +304,7 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
     return scores, ground_truth, clusters, cluster_scores
 
 
-def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data):
+def collect_miscellania_bfw(n_clusters, feature, cluster_method, db_fold, embedding_data):
     # setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
@@ -323,7 +325,7 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
         cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
 
     # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
+    embedding_data['i_cluster'] = cluster_method.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('float32'))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
     # cluster_map <- image path to which cluster it belongs
 
