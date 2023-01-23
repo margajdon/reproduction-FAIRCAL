@@ -1,6 +1,7 @@
 data/
 __pycache__/
 .idea/
+.ipynb_checkpoints/
 embeddings/
 similarities/
 experiments/
@@ -12,6 +13,8 @@ resnet100.onnx
 .DS_Store
 embeddings.zip
 similarities.zip
+ICLR Images and Tables_Milus.ipynb
+Main Figures_Milus.ipynb
 experiments_copy/
 experiments_copy2/
 experiments_copy3/

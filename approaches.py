@@ -8,6 +8,8 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 
 from sklearn.cluster import KMeans
+# from sklearn.mixture import GaussianMixture
+from pycave.bayes import GaussianMixture
 from sklearn.metrics import roc_curve
 
 from calibration_methods import BinningCalibration
@@ -63,10 +65,11 @@ def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_
 
 
 def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
-                    score_normalization, fpr, embedding_data, km_random_state=42):
+                    score_normalization, fpr, embedding_data, approach="faircal", km_random_state=42):
 
     # k-means algorithm
-    saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
+    paths = {"faircal":"kmeans", "gmm-discrete":"gmm-discrete"}
+    saveto = f"experiments/{paths[approach]}/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if os.path.exists(saveto):
         os.remove(saveto)
     prepare_dir(saveto)
@@ -76,17 +79,30 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     elif 'bfw' in dataset_name:
         embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
     print(embeddings.shape)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=km_random_state)
-    kmeans.fit(embeddings)
-    np.save(saveto, kmeans)
 
+    cluster_method = None
+    if approach == 'faircal':
+        cluster_method = KMeans(n_clusters=n_clusters, random_state=km_random_state)
+    elif approach == 'gmm-discrete':
+        cluster_method = GaussianMixture(num_components=n_clusters)
+        # cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
+    else:
+        raise ValueError(f"Clustering method {approach} not implemented!")
+
+    cluster_method.fit(embeddings.astype('float32'))
+    np.save(saveto, cluster_method)
+    print("Finished clustering")
+
+    start = time.time()
     if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        r = collect_miscellania_rfw(n_clusters, feature, cluster_method, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        r = collect_miscellania_bfw(n_clusters, feature, cluster_method, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
 
+    print(f'collect_miscellania_bfw took {time.time()-start}')
+    start = time.time()
     scores = r[0]
     ground_truth = r[1]
     clusters = r[2]
@@ -100,6 +116,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
         stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
 
+    print(stats)
     print('Minimum number of pairs in clusters %d' % (min(stats)))
     print('Maximum number of pairs in clusters %d' % (max(stats)))
     print('Median number of pairs in clusters %1.1f' % (np.median(stats)))
@@ -160,7 +177,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
             confidences[dataset] = np.zeros(len(scores[dataset]))
             p = np.zeros(len(scores[dataset]))
             for i_cluster in range(n_clusters):
-                for t in [0, 1]:
+                for t in [0, 1]: # t = true label?
                     select = cluster_scores[dataset][:, t] == i_cluster
                     aux = scores[dataset][select]
                     if len(aux) > 0:
@@ -246,10 +263,45 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
         db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
         db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
 
-        if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
-            print('Warning: There should not be nans in the cluster columns.')
+        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
 
-        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
+
+    # if feature != 'arcface':
+    #     subgroup_old = ''
+    #     temp = None
+    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+    #         scores[dataset] = np.array(db[feature])
+    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
+    #         for i in range(len(db)):
+    #             subgroup = db['ethnicity'].iloc[i]
+    #             if subgroup != subgroup_old:
+    #                 temp = pickle.load(
+    #                     open('data/rfw/' + subgroup + '_' + feature + '_embeddings.pickle', 'rb'))
+    #             subgroup_old = subgroup
+    #
+    #             t = 0
+    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+    #                 folder_name = db[id_face].iloc[i]
+    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
+    #                 key = 'rfw/data/' + subgroup + '_cropped/' + folder_name + '/' + file_name
+    #                 i_cluster = kmeans.predict(temp[key])[0]
+    #                 cluster_scores[dataset][i, t] = i_cluster
+    #                 t += 1
+    # else:
+    #     temp = pickle.load(open('data/rfw/rfw_' + feature + '_embeddings.pickle', 'rb'))
+    #     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
+    #         scores[dataset] = np.array(db[feature])
+    #         ground_truth[dataset] = np.array(db['same'].astype(bool))
+    #         for i in range(len(db)):
+    #             subgroup = db['ethnicity'].iloc[i]
+    #             t = 0
+    #             for id_face, num_face in zip(['id1', 'id2'], ['num1', 'num2']):
+    #                 folder_name = db[id_face].iloc[i]
+    #                 file_name = db[id_face].iloc[i] + '_000' + str(db[num_face].iloc[i]) + '.jpg'
+    #                 key = 'rfw/data/' + subgroup + '/' + folder_name + '/' + file_name
+    #                 i_cluster = kmeans.predict(temp[key].reshape(1, -1).astype(float))[0]
+    #                 cluster_scores[dataset][i, t] = i_cluster
+    #                 t += 1
 
     return scores, ground_truth, clusters, cluster_scores
 
@@ -281,16 +333,14 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         # remove image pairs that have missing cosine similarities
-        db = db[db[feature].notna()].reset_index(drop=True)
-        scores[dataset] = np.array(db[feature])
-        ground_truth[dataset] = np.array(db['same'].astype(bool))
+        db2 = db[db[feature].notna()].reset_index(drop=True)
+        scores[dataset] = np.array(db2[feature])
+        ground_truth[dataset] = np.array(db2['same'].astype(bool))
 
-        db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
-        db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
+        db2[f'{dataset}_cluster_1'] = db2['path1'].map(cluster_map)
+        db2[f'{dataset}_cluster_2'] = db2['path2'].map(cluster_map)
 
-        if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
-            print('Warning: There should not be nans in the cluster columns.')
-        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
+        cluster_scores[dataset] = db2[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].fillna(0).values
         print(f'{dataset}: {cluster_scores[dataset].shape}')
 
     return scores, ground_truth, clusters, cluster_scores

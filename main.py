@@ -98,7 +98,22 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 n_clusters,
                 False,
                 0,
-                embedding_data
+                embedding_data,
+                approach
+            )
+        elif approach == 'gmm-discrete':
+            scores, ground_truth, confidences, fair_scores = cluster_methods(
+                nbins,
+                calibration_method,
+                dataset_name,
+                feature,
+                fold,
+                db_fold,
+                n_clusters,
+                False,
+                0,
+                embedding_data,
+                approach
             )
         elif approach == 'fsn':
             scores, ground_truth, confidences, fair_scores = cluster_methods(
@@ -162,6 +177,15 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup
                     )
                 elif 'faircal' in approach:
+                    r = collect_measures_bmc_or_oracle(
+                        ground_truth['test'],
+                        scores['test'],
+                        confidences['test'],
+                        nbins,
+                        subgroup_scores['test'][att],
+                        subgroup
+                    )
+                elif 'gmm-discrete' in approach:
                     r = collect_measures_bmc_or_oracle(
                         ground_truth['test'],
                         scores['test'],
@@ -259,6 +283,11 @@ def main():
     total_start = time.time()
     args = parser.parse_args()
     db = None
+    # args.calibration_methods = 'beta'
+    # # args.approaches = 'agenda'
+    # args.features = 'facenet-webface'
+    # args.dataset = 'bfw'
+    # args.approaches = 'faircal'
 
     for dataset in args.dataset:
         if dataset == 'rfw':
@@ -370,7 +399,7 @@ def collect_measures_baseline_or_fsn_or_ftc(ground_truth, scores, confidences, n
 
 def file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster, fpr_thr):
     folder_name = '/'.join([dataset, feature, approach, calibration_method])
-    if 'faircal' in approach:
+    if 'faircal' in approach or 'gmm-discrete' in approach:
         file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster)])
     elif 'fsn' in approach:
         file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster), 'fpr', format(fpr_thr, '.0e')])
