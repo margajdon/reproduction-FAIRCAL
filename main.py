@@ -4,6 +4,7 @@ import os
 import argparse
 import torch
 import pickle
+import time
 
 from approaches import baseline
 from approaches import cluster_methods
@@ -254,6 +255,7 @@ parser.add_argument(
 
 
 def main():
+    total_start = time.time()
     args = parser.parse_args()
     db = None
 
@@ -316,6 +318,7 @@ def main():
                                 embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
                             if dataset == 'rfw':
                                 embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
+                            start = time.time()
                             data = gather_results(
                                 dataset,
                                 db,
@@ -327,7 +330,9 @@ def main():
                                 calibration_method,
                                 embedding_data
                             )
+                            print(f'Dataset {dataset}, feature {feature}, approach {approach}: {round(time.time()-start, 3)} seconds')
                             np.save(saveto, data)
+    print(f'All experiments took {round(time.time() - start)} seconds')
 
 
 
