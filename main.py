@@ -21,7 +21,7 @@ agenda_settings_folder = 'experiments/agenda_settings/'
 
 
 def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, approach, calibration_method, embedding_data):
-
+    """Runs the approach and collects metrics appropriate clusters"""
     db = db_input.copy()
     if dataset_name == 'rfw':
         # RFW subgroup and sensitive attributes
@@ -132,14 +132,14 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
             torch.save(modelE.state_dict(), saveto+'_modelE')
         elif approach == 'oracle':
             confidences = oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_method)
-        else:
+        else: 
             raise ValueError('Approach %s not available.' % approach)
 
 
+        # Collect measures for correct approach
         fpr, tpr, thresholds, ece, ks, brier = {}, {}, {}, {}, {}, {}
         for att in subgroups.keys():
-            fpr[att], tpr[att], thresholds[att], ece[att], ks[att], brier[att] = \
-                {}, {}, {}, {}, {}, {}
+            fpr[att], tpr[att], thresholds[att], ece[att], ks[att], brier[att] = [{}]*6
 
             for j, subgroup in enumerate(subgroups[att]+['Global']):
                 if approach == 'baseline':
@@ -152,7 +152,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup
                     )
                 elif 'faircal' in approach:
-                    r = collect_measures_bmc_or_oracle(
+                    r = collect_measures_faircal_or_oracle(
                         ground_truth['test'],
                         scores['test'],
                         confidences['test'],
@@ -188,7 +188,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                         subgroup
                     )
                 elif approach == 'oracle':
-                    r = collect_measures_bmc_or_oracle(
+                    r = collect_measures_faircal_or_oracle(
                         ground_truth['test'],
                         scores['test'],
                         confidences['test'][att],
@@ -323,8 +323,9 @@ def main():
                             np.save(saveto, data)
 
 
-
-def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
+def collect_measures_faircal_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
+    """Computes metrics for FairCal and Oracle approaches
+    Returns: fpr, tpr, thresholds, ece, ks, brier"""
     if subgroup == 'Global':
         select = np.full(scores.size, True, dtype=bool)
     else:
@@ -339,6 +340,8 @@ def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, sub
 
 
 def collect_measures_baseline_or_fsn_or_ftc(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
+    """Computes metrics for Baseline, FSN or FTC approaches
+    Returns: fpr, tpr, thresholds, ece, ks, brier"""
     if subgroup == 'Global':
         select = np.full(scores.size, True, dtype=bool)
     else:
@@ -356,6 +359,7 @@ def collect_measures_baseline_or_fsn_or_ftc(ground_truth, scores, confidences, n
 
 
 def file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster, fpr_thr):
+    """Create filename"""
     folder_name = '/'.join([dataset, feature, approach, calibration_method])
     if 'faircal' in approach:
         file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster)])

@@ -1,7 +1,4 @@
 import numpy as np
-import os
-import pandas as pd
-import pickle
 import torch
 from torch import nn
 import torch.optim as optim
@@ -9,11 +6,7 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
 
-from calibration_methods import BinningCalibration
-from calibration_methods import IsotonicCalibration
-from calibration_methods import BetaCalibration
-
-from approaches import find_threshold, baseline
+from approaches import baseline
 
 
 def ftc(dataset_name, feature, db_fold, nbins, calibration_method):
@@ -107,6 +100,11 @@ class NeuralNetwork(nn.Module):
 
 
 def collect_error_embeddings_rfw(db_cal):
+    """Returns:
+        error_embeddings    the absolute difference between the embeddings of each image in each pair
+        ground_truth:       torch.Tensor of the ground_truth label
+        subgroups:          array of the ethnicities (same for each image in a pair)
+    """
     embeddings = {
         'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),
         'right': torch.tensor(np.vstack(db_cal['emb_2'].values))
@@ -119,6 +117,12 @@ def collect_error_embeddings_rfw(db_cal):
 
 
 def collect_error_embeddings_bfw(db_cal):
+    """Returns:
+        error_embeddings    the absolute difference between the embeddings of each image in each pair
+        ground_truth:       torch.Tensor of the ground_truth label
+        subgroups_left:     array of the ethnicity_gender for the left image of each pair
+        subgroups_right:     array of the ethnicity_gender for the right image of each pair
+    """
     # collect embeddings of all the images in the calibration set
     embeddings = {
         'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),

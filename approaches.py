@@ -1,9 +1,5 @@
 import numpy as np
-import torch
-import pickle
 import os
-import time
-from tqdm import tqdm
 import pandas as pd
 pd.options.mode.chained_assignment = None
 
@@ -17,6 +13,7 @@ from utils import prepare_dir
 
 
 def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1):
+    """Performs baseline method, i.e. only calibration"""
     if calibration_method == 'binning':
         calibration = BinningCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max,
                                          nbins=nbins)
@@ -31,6 +28,7 @@ def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, scor
 
 
 def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_method):
+    """Performs Oracle method, i.e. only calibration per subgroup"""
     confidences = {}
     for dataset in ['cal', 'test']:
         confidences[dataset] = {}
@@ -64,8 +62,9 @@ def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_
 
 def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
                     score_normalization, fpr, embedding_data, km_random_state=42):
+    """Performs FairCal method"""
 
-    # k-means algorithm
+    # Perform KMeans
     saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
     if os.path.exists(saveto):
         os.remove(saveto)
@@ -80,17 +79,13 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     kmeans.fit(embeddings)
     np.save(saveto, kmeans)
 
+    # Cluster the embeddings and collect info about the clustering
     if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        scores, ground_truth, clusters, cluster_scores = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
+        scores, ground_truth, clusters, cluster_scores = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
     else:
         raise ValueError('Dataset %s not available' % dataset_name)
-
-    scores = r[0]
-    ground_truth = r[1]
-    clusters = r[2]
-    cluster_scores = r[3]
 
     print('Statistics Cluster K = %d' % n_clusters)
     stats = np.zeros(n_clusters)
@@ -100,11 +95,13 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
         stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
 
+    # Debugging messages
     print('Minimum number of pairs in clusters %d' % (min(stats)))
     print('Maximum number of pairs in clusters %d' % (max(stats)))
     print('Median number of pairs in clusters %1.1f' % (np.median(stats)))
     print('Mean number of pairs in clusters %1.1f' % (np.mean(stats)))
 
+    # Perform score normalization
     if score_normalization:
 
         global_threshold = find_threshold(scores['cal'], ground_truth['cal'], fpr)
@@ -156,6 +153,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
             clusters[i_cluster]['confidences'] = {}
             clusters[i_cluster]['confidences']['cal'] = cluster_calibration_method[i_cluster].predict(scores_cal)
 
+        # Determine final score for each datapoint
         for dataset in ['cal', 'test']:
             confidences[dataset] = np.zeros(len(scores[dataset]))
             p = np.zeros(len(scores[dataset]))
@@ -212,7 +210,7 @@ def collect_embeddings_bfw(db_cal, embedding_data):
 
 
 def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data):
-    # setup clusters
+    # Setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
         clusters[i_cluster] = {}
@@ -221,21 +219,14 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
             clusters[i_cluster][variable] = {}
             for dataset in ['cal', 'test']:
                 clusters[i_cluster][variable][dataset] = []
-    scores = {}
-    ground_truth = {}
-    cluster_scores = {}
-    for dataset in ['cal', 'test']:
-        scores[dataset] = np.zeros(len(db_fold[dataset]))
-        ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
-        cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
 
-    # collect scores, ground_truth per cluster for the calibration set
+    scores, ground_truth, cluster_scores = {}, {}, {}
 
-    # Predict kmeans
+    # Predict cluster for each embedding
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 
-
+    # Collect cluster info for each pair of images
     for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
         scores[dataset] = np.array(db[feature])
         ground_truth[dataset] = np.array(db['same'].astype(bool))
@@ -255,7 +246,7 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
 
 
 def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data):
-    # setup clusters
+    # Setup clusters
     clusters = {}
     for i_cluster in range(n_clusters):
         clusters[i_cluster] = {}
@@ -264,17 +255,10 @@ def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data
             clusters[i_cluster][variable] = {}
             for dataset in ['cal', 'test']:
                 clusters[i_cluster][variable][dataset] = []
-    scores = {}
-    ground_truth = {}
-    cluster_scores = {}
-    for dataset in ['cal', 'test']:
-        # consider only pairs that have cosine similarities
-        number_pairs = len(db_fold[dataset][db_fold[dataset][feature].notna()])
-        scores[dataset] = np.zeros(number_pairs)
-        ground_truth[dataset] = np.zeros(number_pairs).astype(bool)
-        cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
 
-    # Predict kmeans
+    scores, ground_truth, cluster_scores = {}, {}, {}
+
+    # Predict cluster for each embedding
     embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 

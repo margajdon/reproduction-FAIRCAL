@@ -1,27 +1,17 @@
 import numpy as np
-import os
 import pandas as pd
-import pickle
 import torch
 from torch import nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from approaches import baseline
-from sklearn.cluster import KMeans
-from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-# from calibration_methods import BinningCalibration
-# from calibration_methods import SplinesCalibration
-# from calibration_methods import IsotonicCalibration
-# from calibration_methods import BetaCalibration
-
-from approaches import find_threshold
-
 
 def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_data):
-
+    """Implementation of the AGENDA approach"""
+    # Collect embeddings
     if dataset_name == 'rfw':
         embeddings, subgroup_embeddings, id_embeddings = collect_embeddings_rfw_agenda(db_fold['cal'], embedding_data)
     elif 'bfw' in dataset_name:
@@ -29,36 +19,33 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
     else:
         raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
 
+    # Split and load data
     embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
         = train_test_split(embeddings, id_embeddings, subgroup_embeddings, test_size=0.2)
-
     id_train = pd.Series(id_train, dtype="category").cat.codes.values
     id_test = pd.Series(id_test, dtype="category").cat.codes.values
-
     train_dataloader = DataLoader(
             EmbeddingsDataset(embeddings_train, id_train, subgroup_train),
             batch_size=400,
             shuffle=True,
             num_workers=0)
-
     test_dataloader = DataLoader(
             EmbeddingsDataset(embeddings_test, id_test, subgroup_test),
             batch_size=400,
             shuffle=True,
             num_workers=0)
-
     n_id = len(np.unique(id_train))
     n_subgroup = len(np.unique(subgroup_train))
-
     
+    # Hyperparameters
     Nep = 100
     Tep = 10
     epochs_stage1 = 50
     epochs_stage2 = 25
     epochs_stage3 = 5
     epochs_stage4 = 5
-
     loss_fn = nn.CrossEntropyLoss()
+
     # Initialize 
     modelM = NeuralNetworkM().cuda()
     modelC = NeuralNetworkC(n_id).cuda()
@@ -70,7 +57,7 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
         if torch.cuda.is_available():
             modelM.train()
             modelC.train()
-        for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
+        for _, (X, y_id, y_subgroup) in enumerate(train_dataloader):
             if torch.cuda.is_available():
                 X = X.cuda()
                 y_id = y_id.cuda()
@@ -109,7 +96,7 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
 
         ## STAGE 3 ##
         optimizer_stage3 = optim.Adam(list(modelM.parameters())+list(modelC.parameters()), lr=1e-3)
-    #     print(f"STAGE 3")
+        print(f"STAGE 3")
         for epoch in range(epochs_stage3):
             for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
                 if torch.cuda.is_available():
@@ -135,7 +122,7 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
         ## STAGE 4 ##
 
         optimizer_stage2 = optim.Adam(modelE.parameters(), lr=1e-3)
-    #     print(f"STAGE 4")
+        print(f"STAGE 4")
         for epoch in range(epochs_stage4):
             modelM.eval()
             modelE.eval()
@@ -155,7 +142,6 @@ def agenda(dataset_name, feature, db_fold, nbins, calibration_method, embedding_
                     correct += (prob.argmax(1) == y_subgroup).type(torch.float).sum().item()
             test_loss /= size
             correct /= size
-    #         print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}")
 
             if correct > 0.9:
                 break
@@ -258,6 +244,7 @@ class NeuralNetworkE(nn.Module):
 
 
 def collect_embeddings_rfw_agenda(db_cal, embedding_data):
+    "Returns embeddings for RFW dataset in correct format for use in agenda"
     all_images = set(db_cal['image_id_1_clean']) | set(db_cal['image_id_2_clean'])
     df_all_images = pd.DataFrame([{'image_id': p} for p in all_images])
     embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
@@ -284,6 +271,7 @@ def collect_embeddings_rfw_agenda(db_cal, embedding_data):
 
 
 def collect_embeddings_bfw_agenda(db_cal, embedding_data):
+    "Returns embeddings for BFW dataset in correct format for use in agenda"
     all_images = set(db_cal['path1']) | set(db_cal['path2'])
     df_all_images = pd.DataFrame([{'img_path': p} for p in all_images])
     embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
@@ -309,6 +297,11 @@ def collect_embeddings_bfw_agenda(db_cal, embedding_data):
     return embeddings, subgroup_embeddings, id_embeddings
 
 def collect_pair_embeddings_rfw(db_cal):
+    """Returns:
+        embeddings      dict with keys=(left, right), one for each image in a pair
+        ground_truth:   torch.Tensor of the ground_truth label
+        subgroups:      array of the subgroup values 
+    """
     embeddings = {
         'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),
         'right': torch.tensor(np.vstack(db_cal['emb_2'].values))
@@ -319,7 +312,12 @@ def collect_pair_embeddings_rfw(db_cal):
 
 
 def collect_pair_embeddings_bfw(db_cal):
-    # collect embeddings of all the images in the calibration set
+    """Returns:
+        embeddings      dict with keys=(left, right), one for each image in a pair
+        ground_truth:   torch.Tensor of the ground_truth label
+        subgroups_left: array of the subgroup values of the left images
+        subgroups_left: array of the subgroup values of the right images
+    """
     embeddings = {
         'left': torch.from_numpy(np.vstack(db_cal['emb_1'].values)),
         'right': torch.from_numpy(np.vstack(db_cal['emb_2'].values)),
