@@ -266,7 +266,7 @@ def main():
     db = None
 
     args.calibration_methods = 'beta'
-    args.dataset = 'rfw'
+    args.dataset = 'bfw'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -287,14 +287,14 @@ def main():
         features = [args.features]
     if args.approaches == 'all':
         # approaches = ['baseline', 'faircal']
-        approaches = ['gmm-discrete']
+        approaches = ['faircal']
     else:
         approaches = [args.approaches]
     if args.calibration_methods == 'all':
         calibration_methods = ['beta']
     else:
         calibration_methods = [args.calibration_methods]
-    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+    n_clusters = [20] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:

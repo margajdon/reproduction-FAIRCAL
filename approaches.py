@@ -82,7 +82,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     if approach == 'faircal':
         cluster_method = KMeans(n_clusters=n_clusters)            
     elif approach == 'gmm-discrete':
-        cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
+        cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2, tol=0.1)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
 
@@ -112,6 +112,10 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
         clusters[i_cluster]['scores']['cal'] = scores['cal'][select]
         clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
         stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
+        print(clusters[i_cluster]['scores']['cal'])
+        print("*"*100)
+        print(stats)
+        exit()
 
     print('Minimum number of pairs in clusters %d' % (min(stats)))
     print('Maximum number of pairs in clusters %d' % (max(stats)))
