@@ -282,11 +282,10 @@ parser.add_argument(
 def main():
     total_start = time.time()
     args = parser.parse_args()
-    db = None
     # args.calibration_methods = 'beta'
-    # # args.approaches = 'agenda'
+    # args.approaches = ["gmm-discrete"]
     # args.features = 'facenet-webface'
-    # args.dataset = 'bfw'
+    # args.dataset = ['rfw']
     # args.approaches = 'faircal'
 
     for dataset in args.dataset:

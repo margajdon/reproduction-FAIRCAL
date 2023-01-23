@@ -249,7 +249,7 @@ def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data
     # collect scores, ground_truth per cluster for the calibration set
 
     # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
+    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('float32'))
     cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
 
 
