@@ -286,7 +286,7 @@ def main():
     else:
         features = [args.features]
     if args.approaches == 'all':
-        approaches = ['baseline', 'faircal']
+        approaches = ['baseline', 'faircal', 'gmm-discrete']
         # approaches = ['gmm-discrete']
     else:
         approaches = [args.approaches]

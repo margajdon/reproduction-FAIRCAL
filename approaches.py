@@ -7,8 +7,9 @@ from tqdm import tqdm
 import pandas as pd
 pd.options.mode.chained_assignment = None
 
-from sklearn.cluster import KMeans
+# from sklearn.cluster import KMeans
 # from sklearn.mixture import GaussianMixture
+from pycave.clustering import KMeans
 from pycave.bayes import GaussianMixture
 from sklearn.metrics import roc_curve
 
@@ -81,16 +82,17 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
 
     cluster_method = None
     if approach == 'faircal':
-        cluster_method = KMeans(n_clusters=n_clusters)
+        cluster_method = KMeans(n_clusters)
     elif approach == 'gmm-discrete':
         cluster_method = GaussianMixture(num_components=n_clusters)
         # cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
 
+    start = time.perf_counter()
     cluster_method.fit(embeddings.astype('float32'))
     np.save(saveto, cluster_method)
-    print("Finished clustering")
+    print(f"Finished clustering in {time.perf_counter()-start}s")
 
     start = time.time()
     if dataset_name == 'rfw':
