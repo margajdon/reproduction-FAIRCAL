@@ -24,16 +24,17 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
 
     db = db_input.copy()
     if dataset_name == 'rfw':
-        # RFW subgroup
+        # RFW subgroup and sensitive attributes
         subgroups = {'ethnicity': ['African', 'Asian', 'Caucasian', 'Indian']}
-        # RFW sensitive attributes
         sensitive_attributes = {'ethnicity': ['ethnicity', 'ethnicity']}
+
         # Assigning the embedding to each image
         db['image_id_1_clean'] = db['id1'].map(str) + '_000' + db['num1'].map(str)
         db['image_id_2_clean'] = db['id2'].map(str) + '_000' + db['num2'].map(str)
         embedding_map = dict(zip(embedding_data['image_id'], embedding_data['embedding']))
         db['emb_1'] = db['image_id_1_clean'].map(embedding_map)
         db['emb_2'] = db['image_id_2_clean'].map(embedding_map)
+
         # Create a mask to remove the rows with missing cosine similarity or embedding.
         keep_cond = (
                 db[feature].notnull() &
@@ -41,15 +42,15 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 db['emb_2'].notnull()
         )
     elif dataset_name == 'bfw':
-        # BFW subgroup
+        # BFW subgroups and sensitive attributes
         subgroups = {
             'e': ['B', 'A', 'W', 'I'],
             'g': ['F', 'M'],
             'att': ['asian_females', 'asian_males', 'black_males', 'black_females', 'white_females', 'white_males',
                     'indian_females', 'indian_males']
         }
-        # BFW sensitive attributes
         sensitive_attributes = {'e': ['e1', 'e2'], 'g': ['g1', 'g2'], 'att': ['att1', 'att2']}
+
         # Assigning the embedding to each image
         embedding_map = dict(zip(embedding_data['img_path'], embedding_data['embedding']))
         db['emb_1'] = db['path1'].map(embedding_map)
@@ -69,12 +70,11 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
 
     data = {}
 
-    # select one of the folds to be the test set
-    for i_variable, fold in enumerate([1, 2, 3, 4, 5]):
+    # Perform K-fold validation
+    for fold in [1, 2, 3, 4, 5]:
+        # Prep datastructures
         db_fold = {'cal': db[db['fold'] != fold], 'test': db[db['fold'] == fold]}
-        scores = {}
-        ground_truth = {}
-        subgroup_scores = {}
+        scores, ground_truth, subgroup_scores = {}, {}, {}
         for dataset in ['cal', 'test']:
             scores[dataset] = np.array(db_fold[dataset][feature])
             ground_truth[dataset] = np.array(db_fold[dataset]['same'])
@@ -84,6 +84,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
                 subgroup_scores[dataset][att]['left'] = np.array(db_fold[dataset][sensitive_attributes[att][0]])
                 subgroup_scores[dataset][att]['right'] = np.array(db_fold[dataset][sensitive_attributes[att][1]])
 
+        # Get results for the correct approach
         if approach == 'baseline':
             confidences = baseline(scores, ground_truth, nbins, calibration_method)
         elif approach == 'faircal':
@@ -134,20 +135,11 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
         else:
             raise ValueError('Approach %s not available.' % approach)
 
-        fpr = {}
-        tpr = {}
-        thresholds = {}
-        ece = {}
-        ks = {}
-        brier = {}
 
+        fpr, tpr, thresholds, ece, ks, brier = {}, {}, {}, {}, {}, {}
         for att in subgroups.keys():
-            fpr[att] = {}
-            tpr[att] = {}
-            thresholds[att] = {}
-            ece[att] = {}
-            ks[att] = {}
-            brier[att] = {}
+            fpr[att], tpr[att], thresholds[att], ece[att], ks[att], brier[att] = \
+                {}, {}, {}, {}, {}, {}
 
             for j, subgroup in enumerate(subgroups[att]+['Global']):
                 if approach == 'baseline':
@@ -285,7 +277,8 @@ def main():
         if args.calibration_methods == 'all':
             args.calibration_methods = ['binning', 'isotonic_regression', 'beta']
 
-        n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+        # Experiment loop
+        n_clusters = [100]
         fpr_thr_list = [1e-3]
         for n_cluster in n_clusters:
             for fpr_thr in fpr_thr_list:
