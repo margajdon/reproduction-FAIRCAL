@@ -50,9 +50,8 @@ class IsotonicCalibration():
         self.score_min = score_min
         self.score_max = score_max
         self._obj = IsotonicRegression(
-            y_min=self.score_min,
-            y_max=self.score_max,
-            out_of_bounds='clip').fit(scores, ground_truth)
+            y_min=self.score_min, y_max=self.score_max, out_of_bounds='clip'
+        ).fit(scores, ground_truth)
 
     def predict(self, scores):
         return self._obj.predict(scores)

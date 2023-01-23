@@ -118,6 +118,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
             saveto = '_'.join(
                 [dataset_name, calibration_method, feature, 'fold', str(fold)])
             saveto = ftc_settings_folder + saveto
+            prepare_dir(saveto)
             torch.save(model.state_dict(), saveto)
         elif approach == 'agenda':
             fair_scores, confidences, modelM, modelC, modelE = agenda(
