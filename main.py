@@ -229,112 +229,105 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    '--dataset', type=str,
-    help='name of dataset',
+    '--dataset', type=str, nargs='+',
+    help='name of dataset, to run both, pass "rfw bfw"',
     choices=['rfw', 'bfw'],
-    default='bfw')
+    default=['bfw'])
 
 parser.add_argument(
-    '--features', type=str,
+    '--features', type=str, nargs='+',
     help='features',
     choices=['facenet', 'facenet-webface', 'arcface', 'all'],
     default='all')
 
 parser.add_argument(
-    '--approaches', type=str,
-    help='approaches',
+    '--approaches', type=str, nargs='+',
+    help='approaches to use seperate using " "',
     choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle', 'all'],
     default='all')
 
 parser.add_argument(
-    '--calibration_methods', type=str,
-    help='calibration_methods',
+    '--calibration_methods', type=str, nargs='+',
+    help='calibration_methods to use, seperate using " "',
     choices=['binning', 'isotonic_regression', 'beta', 'all'],
-    default='all')
+    default=['beta'])
 
 
 def main():
     args = parser.parse_args()
     db = None
-    # args.calibration_methods = 'beta'
-    # args.approaches = 'ftc'
-    # args.features = 'facenet-webface'
-    # args.dataset = 'rfw'
-    # # args.approaches = 'faircal'
 
-    dataset = args.dataset
-    if dataset == 'rfw':
-        db = pd.read_csv('data/rfw/rfw_w_sims.csv')
-        nbins = 10
-    elif 'bfw' in dataset:
-        db = pd.read_csv('data/bfw/bfw_w_sims.csv')
-        nbins = 25
-
-    # Print out how many comparisons are possible for each model
-    print(dataset)
-    for c in ('facenet', 'facenet-webface', 'arcface'):
-        print(f'{c}: {db[c].notnull().sum()} pairs available, {db[c].isnull().sum()} cosine sim missing.')
-
-    create_folder(f"{experiments_folder}/{dataset}")
-
-    if args.features == 'all':
-        if args.dataset == 'rfw':
-            features = ['facenet', 'facenet-webface']
+    for dataset in args.dataset:
+        if dataset == 'rfw':
+            db = pd.read_csv('data/rfw/rfw_w_sims.csv')
+            nbins = 10
+        elif dataset == 'bfw':
+            db = pd.read_csv('data/bfw/bfw_w_sims.csv')
+            nbins = 25
         else:
-            features = ['facenet-webface', 'arcface']
-    else:
-        features = [args.features]
-    if args.approaches == 'all':
-        approaches = ['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
-    else:
-        approaches = [args.approaches]
-    if args.calibration_methods == 'all':
-        calibration_methods = ['binning', 'isotonic_regression', 'beta']
-    else:
-        calibration_methods = [args.calibration_methods]
-    n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
-    fpr_thr_list = [1e-3]
-    for n_cluster in n_clusters:
-        for fpr_thr in fpr_thr_list:
-            print('fpr_thr: %.0e' % fpr_thr)
-            for feature in features:
-                create_folder(f"{experiments_folder}/{dataset}/{feature}")
-                print('Feature: %s' % feature)
-                for approach in approaches:
-                    create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
-                    print('   Approach: %s' % approach)
-                    for calibration_method in calibration_methods:
-                        create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
-                        print('      Calibration Method: %s' % calibration_method)
-                        if 'faircal' in approach:
-                            print('         number clusters: %d' % n_cluster)
-                        elif 'fsn' in approach:
-                            print('         number clusters: %d' % n_cluster)
-                        saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
-                                                fpr_thr)
-                        if os.path.exists(saveto):
-                            os.remove(saveto)
-                        prepare_dir(saveto)
-                        np.save(saveto, {})
+            print(f'Invalid dataset selected: {dataset}')
+            return
 
-                        # Load embedding data and preprocess
-                        embedding_data = pickle.load(open(f'embeddings/{feature}_{dataset}_embeddings.pk', 'rb'))
-                        if dataset == 'bfw':
-                            embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
-                        if dataset == 'rfw':
-                            embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
-                        data = gather_results(
-                            dataset,
-                            db,
-                            nbins,
-                            n_cluster,
-                            fpr_thr,
-                            feature,
-                            approach,
-                            calibration_method,
-                            embedding_data
-                        )
-                        np.save(saveto, data)
+        # Print out how many comparisons are possible for each model
+        print(dataset)
+
+        create_folder(f"{experiments_folder}/{dataset}")
+
+        if args.features == 'all':
+            if dataset == 'rfw':
+                features = ['facenet', 'facenet-webface']
+            else:
+                features = ['facenet-webface', 'arcface']
+        else:
+            features = [args.features]
+        if args.approaches == 'all':
+            args.approaches = ['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        if args.calibration_methods == 'all':
+            args.calibration_methods = ['binning', 'isotonic_regression', 'beta']
+
+        n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+        fpr_thr_list = [1e-3]
+        for n_cluster in n_clusters:
+            for fpr_thr in fpr_thr_list:
+                print('fpr_thr: %.0e' % fpr_thr)
+                for feature in features:
+                    create_folder(f"{experiments_folder}/{dataset}/{feature}")
+                    print('Feature: %s' % feature)
+                    for approach in args.approaches:
+                        create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
+                        print('   Approach: %s' % approach)
+                        for calibration_method in args.calibration_methods:
+                            create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
+                            print('      Calibration Method: %s' % calibration_method)
+                            if 'faircal' in approach:
+                                print('         number clusters: %d' % n_cluster)
+                            elif 'fsn' in approach:
+                                print('         number clusters: %d' % n_cluster)
+                            saveto = file_name_save(dataset, feature, approach, calibration_method, nbins, n_cluster,
+                                                    fpr_thr)
+                            if os.path.exists(saveto):
+                                os.remove(saveto)
+                            prepare_dir(saveto)
+                            np.save(saveto, {})
+
+                            # Load embedding data and preprocess
+                            embedding_data = pickle.load(open(f'embeddings/{feature}_{dataset}_embeddings.pk', 'rb'))
+                            if dataset == 'bfw':
+                                embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/bfw/bfw-cropped-aligned/', ''))
+                            if dataset == 'rfw':
+                                embedding_data['img_path'] = embedding_data['img_path'].apply(lambda x: x.replace('data/rfw/data/', ''))
+                            data = gather_results(
+                                dataset,
+                                db,
+                                nbins,
+                                n_cluster,
+                                fpr_thr,
+                                feature,
+                                approach,
+                                calibration_method,
+                                embedding_data
+                            )
+                            np.save(saveto, data)
 
 
 
