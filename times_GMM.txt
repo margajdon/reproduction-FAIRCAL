@@ -1,0 +1,1 @@
+{'experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_1.npy': 51.856643399999996, 'experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_1.npy': 40.462602700000005}
