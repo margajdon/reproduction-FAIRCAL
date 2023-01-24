@@ -1,1 +1,25 @@
-{'experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_1.npy': 51.856643399999996, 'experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_1.npy': 40.462602700000005}
+experiment,runtime
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_500.npy,354.5792185
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_500.npy,397.54418360000005
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_250.npy,341.78749990000006
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_250.npy,324.3842238
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_150.npy,231.67811630000006
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_150.npy,191.30994869999995
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_100.npy,163.05829230000018
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_100.npy,152.71055560000013
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_75.npy,140.67377530000022
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_75.npy,147.90099240000018
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_50.npy,134.59120819999998
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_50.npy,116.4722254999997
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_25.npy,105.44469800000024
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_25.npy,100.63066960000015
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_20.npy,87.47251649999998
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_20.npy,91.32554660000005
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_15.npy,95.98486609999964
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_15.npy,100.54959280000003
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_10.npy,74.47152439999991
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_10.npy,86.20408829999997
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_5.npy,60.34456219999993
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_5.npy,69.76729800000021
+experiments/bfw/facenet-webface/gmm-discrete/beta/nbins_25_nclusters_1.npy,53.817248800000016
+experiments/bfw/arcface/gmm-discrete/beta/nbins_25_nclusters_1.npy,38.89861980000023

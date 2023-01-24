@@ -288,7 +288,7 @@ def main():
         features = [args.features]
     if args.approaches == 'all':
         # approaches = ['baseline', 'faircal', 'gmm-discrete']
-        approaches = ['gmm-discrete']
+        approaches = ['faircal']
     else:
         approaches = [args.approaches]
     if args.calibration_methods == 'all':
@@ -296,7 +296,7 @@ def main():
     else:
         calibration_methods = [args.calibration_methods]
     # n_clusters =  [500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
-    n_clusters =  [1] #n_clusters = 100 was used in the tables on page 8
+    n_clusters =  [100] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
@@ -345,10 +345,10 @@ def main():
                         
                         times[saveto] = time.perf_counter() - start
 
-    with open("times_GMM.txt", "w") as f:
-        f.write("experiment,runtime\n")
-        for key,val in times.items():
-            f.write(f"{key},{val}\n")
+    # with open("times_faircal.txt", "w") as f:
+    #     f.write("experiment,runtime\n")
+    #     for key,val in times.items():
+    #         f.write(f"{key},{val}\n")
 
 
 def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):
