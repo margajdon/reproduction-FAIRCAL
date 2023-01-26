@@ -1,86 +1,81 @@
 import numpy as np
-import os
-import pandas as pd
-import pickle
 import torch
 from torch import nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
 
-from calibration_methods import BinningCalibration
-from calibration_methods import IsotonicCalibration
-from calibration_methods import BetaCalibration
+class FtcApproach:
+    dataset = None
+    def ftc(self, db_fold):
+        r = self.collect_error_embeddings(db_fold['cal'])
 
-from approaches import find_threshold, baseline
+        error_embeddings = r[0]
+        ground_truth = r[1]
+        subgroups_left = r[2]
+        subgroups_right = r[3]
+        train_dataloader = DataLoader(
+            EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=True,
+            num_workers=0)
+        evaluate_train_dataloader = DataLoader(
+            EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=False,
+            num_workers=0)
 
+        r = self.collect_error_embeddings(db_fold['test'])
 
-def ftc(dataset_name, feature, db_fold, nbins, calibration_method):
+        error_embeddings = r[0]
+        ground_truth = r[1]
+        subgroups_left = r[2]
+        subgroups_right = r[3]
 
-    if dataset_name == 'rfw':
-        r = collect_error_embeddings_rfw(db_fold['cal'])
-    elif 'bfw' in dataset_name:
-        r = collect_error_embeddings_bfw(db_fold['cal'])
-    else:
-        raise ValueError(f'Unrecognised dataset_name: {dataset_name}')
+        evaluate_test_dataloader = DataLoader(
+            EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=False,
+            num_workers=0)
 
-    error_embeddings = r[0]
-    ground_truth = r[1]
-    subgroups_left = r[2]
-    subgroups_right = r[3]
-    train_dataloader = DataLoader(
-        EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
-        batch_size=200,
-        shuffle=True,
-        num_workers=0)
-    evaluate_train_dataloader = DataLoader(
-        EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
-        batch_size=200,
-        shuffle=False,
-        num_workers=0)
+        # Initialize model
+        model = NeuralNetwork()
+        # Initialize the loss function
+        loss_fn = nn.CrossEntropyLoss()
+        # Initialize optimizer
+        optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
+        epochs = 50
+        for t in range(epochs):
+            print(f"Epoch {t + 1}\n-------------------------------")
+            train_loop(train_dataloader, model, loss_fn, optimizer, self.dataset)
+            _, _ = test_loop(evaluate_test_dataloader, model, loss_fn)
+        print("Done!")
+        scores_cal, ground_truth_cal = test_loop(evaluate_train_dataloader, model, loss_fn)
+        scores_cal = scores_cal[:, 1].numpy().reshape(-1)
+        assert sum(np.array(ground_truth_cal == 1) != np.array(db_fold['cal']['same'])) == 0
 
-    if dataset_name == 'rfw':
-        r = collect_error_embeddings_rfw(db_fold['test'])
-    elif 'bfw' in dataset_name:
-        r = collect_error_embeddings_bfw(db_fold['test'])
-    error_embeddings = r[0]
-    ground_truth = r[1]
-    subgroups_left = r[2]
-    subgroups_right = r[3]
+        scores_test, ground_truth_test = test_loop(evaluate_test_dataloader, model, loss_fn)
+        scores_test = scores_test[:, 1].numpy().reshape(-1)
+        assert sum(np.array(ground_truth_test == 1) != np.array(db_fold['test']['same'])) == 0
 
-    evaluate_test_dataloader = DataLoader(
-        EmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
-        batch_size=200,
-        shuffle=False,
-        num_workers=0)
+        fair_scores = {'cal': scores_cal, 'test': scores_test}
+        ground_truth = {'cal': ground_truth_cal, 'test': ground_truth_test}
 
-    # Initialize model
-    model = NeuralNetwork()
-    # Initialize the loss function
-    loss_fn = nn.CrossEntropyLoss()
-    # Initialize optimizer
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
-    epochs = 50
-    for t in range(epochs):
-        print(f"Epoch {t + 1}\n-------------------------------")
-        train_loop(train_dataloader, model, loss_fn, optimizer, dataset_name)
-        _, _ = test_loop(evaluate_test_dataloader, model, loss_fn)
-    print("Done!")
-    scores_cal, ground_truth_cal = test_loop(evaluate_train_dataloader, model, loss_fn)
-    scores_cal = scores_cal[:, 1].numpy().reshape(-1)
-    assert sum(np.array(ground_truth_cal == 1) != np.array(db_fold['cal']['same'])) == 0
+        confidences = self.baseline(fair_scores, ground_truth, score_min=-1, score_max=1)
 
-    scores_test, ground_truth_test = test_loop(evaluate_test_dataloader, model, loss_fn)
-    scores_test = scores_test[:, 1].numpy().reshape(-1)
-    assert sum(np.array(ground_truth_test == 1) != np.array(db_fold['test']['same'])) == 0
+        return fair_scores, confidences, model
 
-    fair_scores = {'cal': scores_cal, 'test': scores_test}
-    ground_truth = {'cal': ground_truth_cal, 'test': ground_truth_test}
+    def baseline(self, fair_scores, ground_truth, score_min, score_max):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None
 
-    confidences = baseline(fair_scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1)
-
-    return fair_scores, confidences, model
+    def collect_error_embeddings(self, db_cal):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None, None, None, None
 
 
 class NeuralNetwork(nn.Module):
@@ -104,31 +99,6 @@ class NeuralNetwork(nn.Module):
         logits = self.model(x)
         prob = self.softmax(logits)
         return logits, prob
-
-
-def collect_error_embeddings_rfw(db_cal):
-    embeddings = {
-        'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),
-        'right': torch.tensor(np.vstack(db_cal['emb_2'].values))
-    }
-    ground_truth = np.array(db_cal['same']).astype(bool)
-    subgroups = np.array(db_cal['ethnicity'])
-    error_embeddings = torch.abs(embeddings['left'] - embeddings['right'])
-
-    return error_embeddings, ground_truth, subgroups, subgroups
-
-
-def collect_error_embeddings_bfw(db_cal):
-    # collect embeddings of all the images in the calibration set
-    embeddings = {
-        'left': torch.tensor(np.vstack(db_cal['emb_1'].values)),
-        'right': torch.tensor(np.vstack(db_cal['emb_2'].values))
-    }
-    ground_truth = np.array(db_cal['same']).astype(bool)
-    subgroups_left = np.array(db_cal['att1'])
-    subgroups_right = np.array(db_cal['att2'])
-    error_embeddings = torch.abs(embeddings['left'] - embeddings['right'])
-    return error_embeddings, ground_truth, subgroups_left, subgroups_right
 
 
 class EmbeddingsDataset(Dataset):

@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics import roc_curve
 import os
 import torch
+import sys
 
 
 def determine_device(cpu_bool):
@@ -143,3 +144,52 @@ def get_binary_clf_stats(ground_truth, scores):
     tpr = tp / (tp + fn)
 
     return fpr, tpr, thr
+
+
+def set_seed(seed=0):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+
+class FileManager:
+    @staticmethod
+    def get_save_file_path(dataset, feature, approach, calibration_method, nbins, n_cluster, fpr_thr):
+        experiments_folder = 'experiments/'
+        folder_name = '/'.join([dataset, feature, approach, calibration_method])
+        if 'faircal' in approach:
+            file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster)])
+        elif 'fsn' in approach:
+            file_name = '_'.join(['nbins', str(nbins), 'nclusters', str(n_cluster), 'fpr', format(fpr_thr, '.0e')])
+        else:
+            file_name = '_'.join(['nbins', str(nbins)])
+        return f"{experiments_folder}{folder_name}/{file_name}.npy"
+
+    @staticmethod
+    def prepare_output_dir(saveto):
+        if os.path.exists(saveto):
+            os.remove(saveto)
+        prepare_dir(saveto)
+        np.save(saveto, {})
+
+
+class ExecuteSilently(object):
+    """
+    https://codereview.stackexchange.com/questions/25417/is-there-a-better-way-to-make-a-function-silent-on-need
+    """
+    def __init__(self, stdout=None, stderr=None):
+        self.devnull = open(os.devnull, 'w')
+        self._stdout = stdout or self.devnull or sys.stdout
+        self._stderr = stderr or self.devnull or sys.stderr
+
+    def __enter__(self):
+        self.old_stdout, self.old_stderr = sys.stdout, sys.stderr
+        self.old_stdout.flush()
+        self.old_stderr.flush()
+        sys.stdout, sys.stderr = self._stdout, self._stderr
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._stdout.flush()
+        self._stderr.flush()
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+        self.devnull.close()

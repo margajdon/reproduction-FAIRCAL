@@ -1,8 +1,5 @@
 import argparse
 import os
-import time
-import pickle
-
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -11,17 +8,12 @@ import torch
 from torchvision import transforms
 import pickle
 import mxnet as mx
-import datetime as dt
 from facenet_pytorch import MTCNN, InceptionResnetV1
+import time
 
 from arcface_model import get_arcface_model, get_input
 from dependencies.mtcnn_detector import MtcnnDetector
-
-import time
-
-from utils import batch, prepare_dir, determine_device
-
-
+from utils import batch, prepare_dir, determine_device, ExecuteSilently
 
 parser = argparse.ArgumentParser()
 
@@ -73,6 +65,7 @@ class ImageManager:
 		"""
 		Get all image names (with full paths) from dataset directory
 		"""
+		data_folder = "data"
 		img_names = []
 		for path, subdirs, files in os.walk(os.path.join(data_folder, dataset)):
 			for name in files:
@@ -175,8 +168,6 @@ class ImageManager:
 		"""
 		This method uses the MTCNN detector from Arcface rather than the one
 		from facenet py
-
-
 		"""
 		print("\nArcface pipeline prep! (this might take a while...)")
 		detector = self.get_mtcnn_det_for_arcface()
@@ -233,7 +224,7 @@ class EmbeddingGenerator(ImageManager):
 		self.limit_images = limit_images
 		self.img_prep_map = {
 			'mtcnn': self.mtcnn_img_prep,
-			'arcface': self.new_arcface_img_prep,
+			'arcface': self.arcface_img_prep,
 			'vanilla': self.vanilla_img_prep,
 		}
 		self.embedding_func = {
@@ -364,7 +355,6 @@ def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None)
 		save_str = save_str + f"_limited_{limit_images}"
 	prepare_dir(save_str)
 	for k, df in data_to_save.items():
-		# df.to_csv(f"{save_str}_{k}.csv", index=False)
 		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
 	return save_str
 
@@ -384,6 +374,89 @@ def print_completion_info(start, save_str):
 	print("*"*80)
 
 
+def generate_pass(dataset, model, img_prep, incremental):
+	# Record time
+	start = time.time()
+
+	embeddings_folder = "embeddings"
+	# Set device
+	device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+	print((dataset, model, img_prep))
+
+	# with ExecuteSilently():
+	# Generate embeddings
+	embedding_generator = EmbeddingGenerator(
+		dataset, img_prep, model, device, batch_size=128, incremental=incremental, limit_images=None
+	)
+	embeddings_df, skipped_df = embedding_generator.main()
+
+	# Save outputs
+	data_dic = {'embeddings': embeddings_df, 'skipped': skipped_df}
+	save_outputs(data_dic, embeddings_folder, model, dataset)
+
+	# Record time
+	time_taken = np.round(time.time() - start)
+
+	# Logging
+	print(f'generate_all_embeddings for {dataset} {model} {img_prep} took {time_taken}!')
+
+
+def generate_all_embeddings():
+	# Record time
+	very_start = time.time()
+	# Create a task list
+	task_list = [
+		# ('rfw', 'facenet', 'mtcnn'),
+		# ('rfw', 'facenet-webface', 'mtcnn'),
+		# ('bfw', 'facenet-webface', 'mtcnn'),
+		('bfw', 'arcface', 'arcface'),
+	]
+	incremental = 20
+	for dataset, model, img_prep in task_list:
+		generate_pass(dataset, model, img_prep, incremental)
+
+	time_taken = np.round(time.time() - very_start)
+	print(f'generate_all_embeddings took {time_taken} in total!')
+
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+	'--dataset', type=str,
+	help='name of dataset whose photos should be encoded',
+	choices=['rfw', 'bfw'],
+	default='bfw')
+
+parser.add_argument(
+	'--model', type=str,
+	help='pretrained NN model that should be used',
+	choices=['facenet', 'facenet-webface', 'arcface'],
+	default='facenet')
+
+parser.add_argument(
+	'--limit', type=int,
+	help='maximum number of images to process',
+	default=None)
+
+parser.add_argument(
+	'--batch', type=int,
+	help='batch size of images passed to the model',
+	default=128)
+
+parser.add_argument(
+	'--incremental', type=int,
+	help='batch size of images loaded to RAM',
+	default=None)
+
+parser.add_argument(
+	'--img_prep', type=str,
+	help='preprocessing type applied to the images',
+	choices=['mtcnn', 'vanilla', 'arcface'],
+	default='vanilla')
+
+parser.add_argument('--cpu', action='store_true')
+
+
 if __name__ == '__main__':
 
 	# Record time
@@ -395,14 +468,13 @@ if __name__ == '__main__':
 
 	# Parse arguments
 	args = parser.parse_args()
-	# args.img_prep = 'arcface'
-	# args.model = 'arcface'
-	# args.incremental = 100
 
 	# Determine the device
 	device = determine_device(args.cpu)
 
 	# Print run info
+	args.model = 'arcface'
+	args.img_prep = 'arcface'
 	print((args.model, args.batch, args.img_prep))
 
 	# Generate embeddings

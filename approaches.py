@@ -1,13 +1,14 @@
 import numpy as np
-import torch
-import pickle
 import os
-import time
-from tqdm import tqdm
 import pandas as pd
+from pycave.bayes import GaussianMixture
+from pycave.clustering import KMeans
+
+from approaches_agenda import AgendaApproach
+from approaches_ftc import FtcApproach
+
 pd.options.mode.chained_assignment = None
 
-from sklearn.cluster import KMeans
 from sklearn.metrics import roc_curve
 
 from calibration_methods import BinningCalibration
@@ -15,282 +16,240 @@ from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
 from utils import prepare_dir
 
+import torch
 
-def baseline(scores, ground_truth, nbins, calibration_method, score_min=-1, score_max=1):
-    if calibration_method == 'binning':
-        calibration = BinningCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max,
-                                         nbins=nbins)
-    elif calibration_method == 'isotonic_regression':
-        calibration = IsotonicCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
-    elif calibration_method == 'beta':
-        calibration = BetaCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
-    else:
-        raise ValueError('Calibration method %s not available' % calibration_method)
-    confidences = {'cal': calibration.predict(scores['cal']), 'test': calibration.predict(scores['test'])}
-    return confidences
+experiments_folder = 'experiments/'
 
 
-def oracle(scores, ground_truth, subgroup_scores, subgroups, nbins, calibration_method):
-    confidences = {}
-    for dataset in ['cal', 'test']:
-        confidences[dataset] = {}
-        for att in subgroups.keys():
-            confidences[dataset][att] = np.zeros(len(scores[dataset]))
+class ApproachManager(AgendaApproach, FtcApproach):
+    nbins = None
+    dataset = None
+    approach = None
+    calibration_method = None
+    feature = None
+    n_cluster = None
+    fpr_thr = None
+    subgroups = None
 
-    for att in subgroups.keys():
-        for subgroup in subgroups[att]:
-            select = {}
-            for dataset in ['cal', 'test']:
-                select[dataset] = np.logical_and(
-                    subgroup_scores[dataset][att]['left'] == subgroup,
-                    subgroup_scores[dataset][att]['right'] == subgroup
-                )
+    def get_calibration_method(self, scores, ground_truth, score_min=-1, score_max=1):
+        if self.calibration_method == 'binning':
+            calibration = BinningCalibration(
+                scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max, nbins=self.nbins
+            )
+        elif self.calibration_method == 'isotonic_regression':
+            calibration = IsotonicCalibration(
+                scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max
+            )
+        elif self.calibration_method == 'beta':
+            try:
+                calibration = BetaCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
+            except:
+                print('t')
+        else:
+            raise ValueError('Calibration method %s not available' % self.calibration_method)
+        return calibration
 
-            scores_cal_subgroup = scores['cal'][select['cal']]
-            ground_truth_cal_subgroup = ground_truth['cal'][select['cal']]
-            if calibration_method == 'binning':
-                calibration = BinningCalibration(scores_cal_subgroup, ground_truth_cal_subgroup, nbins=nbins)
-            elif calibration_method == 'isotonic_regression':
-                calibration = IsotonicCalibration(scores_cal_subgroup, ground_truth_cal_subgroup)
-            elif calibration_method == 'beta':
-                calibration = BetaCalibration(scores_cal_subgroup, ground_truth_cal_subgroup)
-            else:
-                raise ValueError('Calibration method %s not available' % calibration_method)
+    def baseline(self, scores, ground_truth, score_min=-1, score_max=1):
+        calibration = self.get_calibration_method(scores, ground_truth, score_min, score_max)
+        return {'cal': calibration.predict(scores['cal']), 'test': calibration.predict(scores['test'])}
 
-            confidences['cal'][att][select['cal']] = calibration.predict(scores_cal_subgroup)
-            confidences['test'][att][select['test']] = calibration.predict(scores['test'][select['test']])
-    return confidences
-
-
-def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_fold, n_clusters,
-                    score_normalization, fpr, embedding_data, km_random_state=42):
-
-    # k-means algorithm
-    saveto = f"experiments/kmeans/{dataset_name}_{feature}_nclusters{n_clusters}_fold{fold}.npy"
-    if os.path.exists(saveto):
-        os.remove(saveto)
-    prepare_dir(saveto)
-    np.save(saveto, {})
-    if dataset_name == 'rfw':
-        embeddings = collect_embeddings_rfw(db_fold['cal'], embedding_data)
-    elif 'bfw' in dataset_name:
-        embeddings = collect_embeddings_bfw(db_fold['cal'], embedding_data)
-    print(embeddings.shape)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=km_random_state)
-    kmeans.fit(embeddings)
-    np.save(saveto, kmeans)
-
-    if dataset_name == 'rfw':
-        r = collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data)
-    elif 'bfw' in dataset_name:
-        r = collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data)
-    else:
-        raise ValueError('Dataset %s not available' % dataset_name)
-
-    scores = r[0]
-    ground_truth = r[1]
-    clusters = r[2]
-    cluster_scores = r[3]
-
-    print('Statistics Cluster K = %d' % n_clusters)
-    stats = np.zeros(n_clusters)
-    for i_cluster in range(n_clusters):
-        select = np.logical_or(cluster_scores['cal'][:, 0] == i_cluster, cluster_scores['cal'][:, 1] == i_cluster)
-        clusters[i_cluster]['scores']['cal'] = scores['cal'][select]
-        clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
-        stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
-
-    print('Minimum number of pairs in clusters %d' % (min(stats)))
-    print('Maximum number of pairs in clusters %d' % (max(stats)))
-    print('Median number of pairs in clusters %1.1f' % (np.median(stats)))
-    print('Mean number of pairs in clusters %1.1f' % (np.mean(stats)))
-
-    if score_normalization:
-
-        global_threshold = find_threshold(scores['cal'], ground_truth['cal'], fpr)
-        local_threshold = np.zeros(n_clusters)
-
-        for i_cluster in range(n_clusters):
-            scores_cal = clusters[i_cluster]['scores']['cal']
-            ground_truth_cal = clusters[i_cluster]['ground_truth']['cal']
-            local_threshold[i_cluster] = find_threshold(scores_cal, ground_truth_cal, fpr)
-
-        fair_scores = {}
-
-        for dataset in ['cal', 'test']:
-            fair_scores[dataset] = np.zeros(len(scores[dataset]))
-            for i_cluster in range(n_clusters):
-                for t in [0, 1]:
-                    select = cluster_scores[dataset][:, t] == i_cluster
-                    fair_scores[dataset][select] += local_threshold[i_cluster] - global_threshold
-
-            fair_scores[dataset] = scores[dataset] - fair_scores[dataset] / 2
-
-        # The fair scores are no longer cosine similarity scores so they may not lie in the interval [-1,1]
-        fair_scores_max = 1 - min(local_threshold - global_threshold)
-        fair_scores_min = -1 - max(local_threshold - global_threshold)
-
-        confidences = baseline(
-            fair_scores,
-            ground_truth,
-            nbins,
-            calibration_method,
-            score_min=fair_scores_min,
-            score_max=fair_scores_max
-        )
-    else:
-        fair_scores = {}
+    def oracle(self, scores, ground_truth, subgroup_scores):
         confidences = {}
-
-        # Fit calibration
-        cluster_calibration_method = {}
-        for i_cluster in range(n_clusters):
-            scores_cal = clusters[i_cluster]['scores']['cal']
-            ground_truth_cal = clusters[i_cluster]['ground_truth']['cal']
-            if calibration_method == 'binning':
-                cluster_calibration_method[i_cluster] = BinningCalibration(scores_cal, ground_truth_cal, nbins=nbins)
-            elif calibration_method == 'isotonic_regression':
-                cluster_calibration_method[i_cluster] = IsotonicCalibration(scores_cal, ground_truth_cal)
-            elif calibration_method == 'beta':
-                cluster_calibration_method[i_cluster] = BetaCalibration(scores_cal, ground_truth_cal)
-            clusters[i_cluster]['confidences'] = {}
-            clusters[i_cluster]['confidences']['cal'] = cluster_calibration_method[i_cluster].predict(scores_cal)
-
         for dataset in ['cal', 'test']:
-            confidences[dataset] = np.zeros(len(scores[dataset]))
-            p = np.zeros(len(scores[dataset]))
-            for i_cluster in range(n_clusters):
-                for t in [0, 1]:
-                    select = cluster_scores[dataset][:, t] == i_cluster
-                    aux = scores[dataset][select]
-                    if len(aux) > 0:
-                        aux = cluster_calibration_method[i_cluster].predict(aux)
-                        confidences[dataset][select] += aux * stats[i_cluster]
-                        p[select] += stats[i_cluster]
-            confidences[dataset] = confidences[dataset] / p
+            confidences[dataset] = {}
+            for att in self.subgroups.keys():
+                confidences[dataset][att] = np.zeros(len(scores[dataset]))
 
-    return scores, ground_truth, confidences, fair_scores
+        for att in self.subgroups.keys():
+            for subgroup in self.subgroups[att]:
+                select = {}
+                for dataset in ['cal', 'test']:
+                    select[dataset] = np.logical_and(
+                        subgroup_scores[dataset][att]['left'] == subgroup,
+                        subgroup_scores[dataset][att]['right'] == subgroup
+                    )
+                scores_cal_subgroup = scores['cal'][select['cal']]
+                ground_truth_cal_subgroup = ground_truth['cal'][select['cal']]
+                calibration = self.get_calibration_method(scores_cal_subgroup, ground_truth_cal_subgroup)
+                confidences['cal'][att][select['cal']] = calibration.predict(scores_cal_subgroup)
+                confidences['test'][att][select['test']] = calibration.predict(scores['test'][select['test']])
+        return confidences
 
+    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data, km_random_state=42):
+        # k-means algorithm
+        saveto = f"experiments/kmeans/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}.npy"
+        if os.path.exists(saveto):
+            os.remove(saveto)
+        prepare_dir(saveto)
+        np.save(saveto, {})
+        embeddings = self.collect_embeddings(db_fold['cal'], embedding_data)
 
-def find_threshold(scores, ground_truth, fpr_threshold):
-    far, tar, thresholds = roc_curve(ground_truth, scores, drop_intermediate=True)
-    aux = np.abs(far - fpr_threshold)
-    return np.min(thresholds[aux == np.min(aux)])
+        cluster_method = None
+        gpu_bool = torch.cuda.is_available()
+        if self.approach in ('faircal', 'fsn'):
+            if gpu_bool:
+                cluster_method = KMeans(num_clusters=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1))
+            else:
+                cluster_method = KMeans(num_clusters=self.n_cluster)
+        elif self.approach == 'gmm-discrete':
+            if gpu_bool:
+                cluster_method = GaussianMixture(
+                    num_components=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1)
+                )
+            else:
+                cluster_method = GaussianMixture(num_components=self.n_cluster)
 
+        else:
+            raise ValueError(f"Approach {self.approach} does not map to a clustering algorithm!")
 
-def collect_embeddings_rfw(db_cal, embedding_data):
-    # Collect embeddings of all the images in the calibration set
-    all_embeddings = np.empty((0, 512))
-    embedding_data['embedding'] = embedding_data['embedding'].to_list()
+        gpu_bool = torch.cuda.is_available()
 
-    # Iterating over subgroup necessary for creating correct image_path string
-    for subgroup in ['African', 'Asian', 'Caucasian', 'Indian']:
-        select = db_cal[db_cal['ethnicity'] == subgroup]
-        if select.empty:
-            continue
-        select['num1'] = select['num1'].astype('string')
-        select['path1'] = subgroup + '/' + select['id1'] + '/' + select['id1'] + '_000' + select['num1'] + '.jpg'
-        select['num2'] = select['num2'].astype('string')
-        select['path2'] = subgroup + '/' + select['id2'] + '/' + select['id2'] + '_000' + select['num2'] + '.jpg'
+        cluster_method.fit(embeddings.astype('float32'))
+        np.save(saveto, cluster_method)
 
-        file_names = set(select['path1'].tolist()) | set(select['path2'].tolist())
-        embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
-        embeddings = np.vstack(embeddings)
-        all_embeddings = np.concatenate([all_embeddings, embeddings])
+        r = self.collect_miscellania(self.n_cluster, cluster_method, db_fold, embedding_data)
 
-    return all_embeddings
+        scores, ground_truth, clusters, cluster_scores = r[:4]
 
+        print('Statistics Cluster K = %d' % self.n_cluster)
+        stats = np.zeros(self.n_cluster)
+        for i_cluster in range(self.n_cluster):
+            select = np.logical_or(cluster_scores['cal'][:, 0] == i_cluster, cluster_scores['cal'][:, 1] == i_cluster)
+            clusters[i_cluster]['scores']['cal'] = scores['cal'][select]
+            clusters[i_cluster]['ground_truth']['cal'] = ground_truth['cal'][select]
+            stats[i_cluster] = len(clusters[i_cluster]['scores']['cal'])
 
-def collect_embeddings_bfw(db_cal, embedding_data):
-    # Collect embeddings of all the images in the calibration set
-    embedding_data['embedding'] = embedding_data['embedding'].to_list()
-    file_names = set(db_cal['path1'].tolist()) | set(db_cal['path2'].tolist())
-    embeddings = embedding_data[embedding_data['img_path'].isin(file_names)]['embedding'].to_numpy()
-    embeddings = np.vstack(embeddings)
+        print('Minimum number of pairs in clusters %d' % (min(stats)))
+        print('Maximum number of pairs in clusters %d' % (max(stats)))
+        print('Median number of pairs in clusters %1.1f' % (np.median(stats)))
+        print('Mean number of pairs in clusters %1.1f' % (np.mean(stats)))
 
-    return embeddings
+        if score_normalization:
 
+            global_threshold = self.find_threshold(scores['cal'], ground_truth['cal'], fpr)
+            local_threshold = np.zeros(self.n_cluster)
 
-def collect_miscellania_rfw(n_clusters, feature, kmeans, db_fold, embedding_data):
-    # setup clusters
-    clusters = {}
-    for i_cluster in range(n_clusters):
-        clusters[i_cluster] = {}
+            for i_cluster in range(self.n_cluster):
+                scores_cal = clusters[i_cluster]['scores']['cal']
+                ground_truth_cal = clusters[i_cluster]['ground_truth']['cal']
+                local_threshold[i_cluster] = self.find_threshold(scores_cal, ground_truth_cal, fpr)
 
-        for variable in ['scores', 'ground_truth']:
-            clusters[i_cluster][variable] = {}
+            fair_scores = {}
+
             for dataset in ['cal', 'test']:
-                clusters[i_cluster][variable][dataset] = []
-    scores = {}
-    ground_truth = {}
-    cluster_scores = {}
-    for dataset in ['cal', 'test']:
-        scores[dataset] = np.zeros(len(db_fold[dataset]))
-        ground_truth[dataset] = np.zeros(len(db_fold[dataset])).astype(bool)
-        cluster_scores[dataset] = np.zeros((len(db_fold[dataset]), 2)).astype(int)
+                fair_scores[dataset] = np.zeros(len(scores[dataset]))
+                for i_cluster in range(self.n_cluster):
+                    for t in [0, 1]:
+                        select = cluster_scores[dataset][:, t] == i_cluster
+                        fair_scores[dataset][select] += local_threshold[i_cluster] - global_threshold
 
-    # collect scores, ground_truth per cluster for the calibration set
+                fair_scores[dataset] = scores[dataset] - fair_scores[dataset] / 2
 
-    # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()).astype('double'))
-    cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
+            # The fair scores are no longer cosine similarity scores so they may not lie in the interval [-1,1]
+            fair_scores_max = 1 - min(local_threshold - global_threshold)
+            fair_scores_min = -1 - max(local_threshold - global_threshold)
 
+            confidences = self.baseline(
+                fair_scores,
+                ground_truth,
+                score_min=fair_scores_min,
+                score_max=fair_scores_max
+            )
+        else:
+            fair_scores = {}
+            confidences = {}
 
-    for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-        scores[dataset] = np.array(db[feature])
-        ground_truth[dataset] = np.array(db['same'].astype(bool))
+            # Fit calibration
+            cluster_calibration_method = {}
+            for i_cluster in range(self.n_cluster):
+                scores_temp = clusters[i_cluster]['scores']
+                ground_truth_temp = clusters[i_cluster]['ground_truth']
+                cluster_calibration_method[i_cluster] = self.get_calibration_method(scores_temp, ground_truth_temp)
+                clusters[i_cluster]['confidences'] = {
+                    'cal': cluster_calibration_method[i_cluster].predict(scores_temp['cal'])
+                }
 
-        db['path1'] = db['ethnicity'] + '/' + db['id1'] + '/' + db['id1'] + '_000' + db['num1'].map(str) + '.jpg'
-        db['path2'] = db['ethnicity'] + '/' + db['id2'] + '/' + db['id2'] + '_000' + db['num2'].map(str) + '.jpg'
-
-        db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
-        db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
-
-        if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
-            print('Warning: There should not be nans in the cluster columns.')
-
-        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
-
-    return scores, ground_truth, clusters, cluster_scores
-
-
-def collect_miscellania_bfw(n_clusters, feature, kmeans, db_fold, embedding_data):
-    # setup clusters
-    clusters = {}
-    for i_cluster in range(n_clusters):
-        clusters[i_cluster] = {}
-
-        for variable in ['scores', 'ground_truth']:
-            clusters[i_cluster][variable] = {}
             for dataset in ['cal', 'test']:
-                clusters[i_cluster][variable][dataset] = []
-    scores = {}
-    ground_truth = {}
-    cluster_scores = {}
-    for dataset in ['cal', 'test']:
-        # consider only pairs that have cosine similarities
-        number_pairs = len(db_fold[dataset][db_fold[dataset][feature].notna()])
-        scores[dataset] = np.zeros(number_pairs)
-        ground_truth[dataset] = np.zeros(number_pairs).astype(bool)
-        cluster_scores[dataset] = np.zeros((number_pairs, 2)).astype(int)
+                confidences[dataset] = np.zeros(len(scores[dataset]))
+                p = np.zeros(len(scores[dataset]))
+                for i_cluster in range(self.n_cluster):
+                    for t in [0, 1]:
+                        select = cluster_scores[dataset][:, t] == i_cluster
+                        aux = scores[dataset][select]
+                        if len(aux) > 0:
+                            aux = cluster_calibration_method[i_cluster].predict(aux)
+                            confidences[dataset][select] += aux * stats[i_cluster]
+                            p[select] += stats[i_cluster]
+                confidences[dataset] = confidences[dataset] / p
 
-    # Predict kmeans
-    embedding_data['i_cluster'] = kmeans.predict(np.vstack(embedding_data['embedding'].to_numpy()))
-    cluster_map = dict(zip(embedding_data['img_path'], embedding_data['i_cluster']))
+        return scores, ground_truth, confidences, fair_scores
 
-    # Collect cluster info for each pair of images
-    for dataset, db in zip(['cal', 'test'], [db_fold['cal'], db_fold['test']]):
-        # remove image pairs that have missing cosine similarities
-        db = db[db[feature].notna()].reset_index(drop=True)
-        scores[dataset] = np.array(db[feature])
-        ground_truth[dataset] = np.array(db['same'].astype(bool))
+    def get_metrics(
+            self, embedding_data, db, db_fold, fold, scores, ground_truth, subgroup_scores
+    ):
+        fair_scores = None
+        if self.approach == 'baseline':
+            confidences = self.baseline(scores, ground_truth)
+        elif self.approach in ('faircal', 'gmm-discrete'):
+            scores, ground_truth, confidences, fair_scores = self.cluster_methods(
+                fold,
+                db_fold,
+                score_normalization=False,
+                fpr=0,
+                embedding_data=embedding_data
+            )
+        elif self.approach == 'fsn':
+            scores, ground_truth, confidences, fair_scores = self.cluster_methods(
+                fold,
+                db_fold,
+                score_normalization=True,
+                fpr=self.fpr_thr,
+                embedding_data=embedding_data
+            )
+        elif self.approach == 'ftc':
+            fair_scores, confidences, model = self.ftc(
+                db_fold
+            )
+            to_join = [self.dataset, self.calibration_method, self.feature, 'fold', str(fold)]
+            saveto = 'experiments/ftc_settings/' + '_'.join(to_join)
+            prepare_dir(saveto)
+            torch.save(model.state_dict(), saveto)
+        elif self.approach == 'agenda':
+            fair_scores, confidences, modelM, modelC, modelE = self.agenda(
+                db_fold, embedding_data
+            )
 
-        db[f'{dataset}_cluster_1'] = db['path1'].map(cluster_map)
-        db[f'{dataset}_cluster_2'] = db['path2'].map(cluster_map)
+            to_join = [self.dataset, self.calibration_method, self.feature, 'fold', str(fold)]
+            saveto = 'experiments/agenda_settings/' + '_'.join(to_join)
+            prepare_dir(saveto)
+            torch.save(modelM.state_dict(), saveto + '_modelM')
+            torch.save(modelC.state_dict(), saveto + '_modelC')
+            torch.save(modelE.state_dict(), saveto + '_modelE')
+        elif self.approach == 'oracle':
+            confidences = self.oracle(
+                scores, ground_truth, subgroup_scores
+            )
+        else:
+            raise ValueError('Approach %s not available.' % self.approach)
+        return scores, ground_truth, confidences, fair_scores
 
-        if db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].isnull().sum().sum():
-            print('Warning: There should not be nans in the cluster columns.')
-        cluster_scores[dataset] = db[[f'{dataset}_cluster_1', f'{dataset}_cluster_2']].values
-        print(f'{dataset}: {cluster_scores[dataset].shape}')
+    def find_threshold(self, scores, ground_truth, fpr_threshold):
+        far, tar, thresholds = roc_curve(ground_truth, scores, drop_intermediate=True)
+        aux = np.abs(far - fpr_threshold)
+        return np.min(thresholds[aux == np.min(aux)])
 
-    return scores, ground_truth, clusters, cluster_scores
+    def collect_embeddings(self, db_cal, embedding_data):
+        """
+        Placeholder method to be overwritten
+        """
+        return pd.DataFrame()
+
+    def collect_miscellania(self, n_clusters, kmeans, db_fold, embedding_data):
+        """
+        Placeholder method to be overwritten
+        """
+        return {}, None, None, None
+
+
+
+
