@@ -101,8 +101,8 @@ def run_complete_analysis():
     main(
         datasets=['rfw', 'bfw'],
         features='all',
-        approaches=['baseline', 'faircal', 'gmm-discrete'],
-        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
+        # approaches=['baseline', 'faircal', 'gmm-discrete'],
+        approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
         calibration_methods=['beta'],
     )
 

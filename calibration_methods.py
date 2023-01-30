@@ -45,7 +45,7 @@ def get_confidences_isotonic_regression(scores_cal, scores_test, ground_truth_ca
     return confidences_cal, confidences_test
 
 
-class IsotonicCalibration():
+class IsotonicCalibration:
     def __init__(self, scores, ground_truth, score_min=-1, score_max=1):
         self.score_min = score_min
         self.score_max = score_max
@@ -57,7 +57,7 @@ class IsotonicCalibration():
         return self._obj.predict(scores)
 
 
-class BinningCalibration():
+class BinningCalibration:
     def __init__(self, scores, ground_truth, score_min=-1, score_max=1, nbins=10):
         self.bin_edges, self.binning_indices = determine_edges(
             scores, nbins, indicesQ=True, score_min=score_min, score_max=score_max)

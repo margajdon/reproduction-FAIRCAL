@@ -213,8 +213,6 @@ class EmbeddingGenerator:
 		sdf_list = []
 
 		for i, img_name_batch in enumerate(batch(img_names, self.incremental)):
-			# if i == 19:
-			# 	print('t')
 			print(f"> Batch {i + 1}/{total_batches}")
 			embeddings_dft, skipped_dft = self.get_embedding_batch(img_name_batch)
 			edf_list.append(embeddings_dft)
@@ -349,25 +347,19 @@ class FacenetEmbeddingGenerator(EmbeddingGenerator):
 	def img_prep(self, all_imgs, img_names, skipped_no_face):
 		print("\nMTCNN pipeline prep! (this might take a while...)")
 		mtcnn = MTCNN()
-		mtcnn_output = mtcnn(all_imgs)
-		# del all_imgs
+		imgs_processed = mtcnn(all_imgs)
+		del all_imgs
 		torch.cuda.empty_cache()
 		# remove images without faces
 		print("\nFiltering images based on face detection...")
 
-		imgs_processed = []
-
-		for img_name, img in tqdm(zip(img_names, mtcnn_output), total=len(mtcnn_output)):
+		for img_name, img in tqdm(zip(img_names, imgs_processed), total=len(imgs_processed)):
 			if img is None:
 				img_details = self.get_img_details(img_name)
 				img_details["reason"] = "Could not find face"
 				skipped_no_face.append(img_details)
-			else:
-				imgs_processed.append(img)
 
-		for i in imgs_processed:
-			if i is None:
-				print('Warning')
+		imgs_processed = [x for x in imgs_processed if x is not None]
 
 		# cleaning up
 		for item in skipped_no_face:
@@ -400,7 +392,7 @@ def generate_all_embeddings():
 		# ('bfw', 'facenet-webface'),
 		# ('bfw', 'arcface'),
 	]
-	incremental = 200
+	incremental = 100
 	for dataset, model, in task_list:
 		generate_one_embedding(dataset, model, incremental)
 
