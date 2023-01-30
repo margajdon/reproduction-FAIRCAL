@@ -41,10 +41,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max
             )
         elif self.calibration_method == 'beta':
-            try:
-                calibration = BetaCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
-            except:
-                print('t')
+            calibration = BetaCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
         else:
             raise ValueError('Calibration method %s not available' % self.calibration_method)
         return calibration

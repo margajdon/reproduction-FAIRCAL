@@ -1,5 +1,7 @@
 import argparse
 import os
+
+import cv2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -13,7 +15,7 @@ import time
 
 from arcface_model import get_arcface_model, get_input
 from dependencies.mtcnn_detector import MtcnnDetector
-from utils import batch, prepare_dir, determine_device, ExecuteSilently
+from utils import batch, prepare_dir, determine_device, ExecuteSilently, save_outputs
 
 parser = argparse.ArgumentParser()
 
@@ -44,22 +46,52 @@ parser.add_argument(
 	help='batch size of images loaded to RAM',
 	default=None)
 
-parser.add_argument(
-	'--img_prep', type=str,
-	help='preprocessing type applied to the images',
-	choices=['mtcnn', 'vanilla', 'arcface'],
-	default='vanilla')
-
 parser.add_argument('--cpu', action='store_true')
 
 
-class ImageManager:
-	af_mtcnn_det = None
-	limit_images = None
-	filter_img_shape_map = {
-		"bfw": (108, 124),
-		"rfw": (400, 400)
-	}
+
+def generate_one_embedding(dataset, model, incremental, batch_size=128):
+	embeddings_folder = "embeddings"
+	# Record time
+	start = time.time()
+	# Set device
+	device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+	# Set the embedding generator
+	if model == 'arcface':
+		EG = ArcfaceEmbeddingGenerator
+	elif model == 'facenet':
+		EG = FacenetEmbeddingGenerator
+	elif model == 'facenet-webface':
+		EG = FacenetEmbeddingGenerator
+	else:
+		ValueError(f'Unrecognised model: {model}!')
+
+	# with ExecuteSilently():
+	# Generate embeddings
+	embedding_generator = EG(
+		dataset, device, batch_size=batch_size, incremental=incremental, limit_images=None
+	)
+	embeddings_df, skipped_df = embedding_generator.main()
+
+	# Save outputs
+	data_dic = {'embeddings': embeddings_df, 'skipped': skipped_df}
+	save_outputs(data_dic, embeddings_folder, model, dataset)
+
+	# Record time
+	time_taken = np.round(time.time() - start)
+
+	# Logging
+	print(f'generate_all_embeddings for {dataset} {model} took {time_taken}!')
+
+
+class EmbeddingGenerator:
+	def __init__(self):
+		self.dataset = None
+		self.incremental = None
+		self.model_str = None
+		self.limit_images = None
+		self.img_shape_map = {"bfw": (108, 124), "rfw": (400, 400)}
 
 	def get_img_names(self, dataset):
 		"""
@@ -78,21 +110,6 @@ class ImageManager:
 		return img_names
 
 	@staticmethod
-	def load_all_images(img_names):
-		"""
-		Load all images specified in img_names as np array
-		"""
-		print("\nLoading images...")
-		images = {}
-		for i, img_name in tqdm(enumerate(img_names), total=len(img_names)):
-			# alternatively allow np to load them directly
-			img = Image.open(img_name)
-			images[img_name] = img.copy()
-			img.close()
-
-		return images
-
-	@staticmethod
 	def get_img_details(img_name):
 		"""
 		Get details of image from single full-path image name
@@ -101,70 +118,142 @@ class ImageManager:
 		data = {"category": category, "person": person, "image_id": image_id, "img_path": img_name}
 		return data
 
-	def filter_by_shape(self, imgs, dataset):
-		filter_img_shape = self.filter_img_shape_map[dataset]
+	def preprocess(self, imgs):
+		""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
+			and a data frame containing details of the skipped images. """
+
 		skipped = []
-		# filter by shape
-		print("\nFiltering images based on shape...")
-		for img_name, img in tqdm(imgs.items(), total=len(imgs)):
-			if img.size != filter_img_shape:
-				img_details = self.get_img_details(img_name)
-				img_details["reason"] = f"Expected shape {filter_img_shape}, got {img.size}"
-				skipped.append(img_details)
+		skipped_no_face = []
 
-		for item in skipped:
-			del imgs[item["img_path"]]
+		# Image size filtering
+		imgs, skipped_shape = self.filter_by_shape(imgs, self.dataset)
+		skipped += skipped_shape
 
+		# mtcnn preprocess
+		img_names = list(imgs.keys())
+		all_imgs = list(imgs.values())
+		del imgs
 		torch.cuda.empty_cache()
-		return imgs, skipped
 
-	def mtcnn_img_prep(self, all_imgs, img_names, skipped_no_face):
-		print("\nMTCNN pipeline prep! (this might take a while...)")
-		mtcnn = MTCNN()
-		imgs_processed = mtcnn(all_imgs)
-		del all_imgs
-		torch.cuda.empty_cache()
-		# remove images without faces
-		print("\nFiltering images based on face detection...")
+		if all_imgs:
+			imgs_processed, img_names, skipped_no_face = self.img_prep(
+				all_imgs, img_names, skipped_no_face
+			)
+		else:
+			# Handles cases when no images passed the shape filtering
+			imgs_processed = []
+			skipped_no_face = []
 
-		for img_name, img in tqdm(zip(img_names, imgs_processed), total=len(imgs_processed)):
-			if img is None:
-				img_details = self.get_img_details(img_name)
-				img_details["reason"] = "Could not find face"
-				skipped_no_face.append(img_details)
+		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
 
-		imgs_processed = [x for x in imgs_processed if x is not None]
+		print(f'N images with face detected: {len(imgs_processed)}')
+		print(f'N images with face undetected: {skipped_df.shape[0]}')
 
-		# cleaning up
-		for item in skipped_no_face:
-			img_names.remove(item["img_path"])
+		return imgs_processed, img_names, skipped_df
 
-		return imgs_processed, img_names, skipped_no_face
+	def img_prep(self, all_imgs, img_names, skipped_no_face):
+		"""
+		Placeholder method
+		"""
+		return None, None, None
 
-	def arcface_img_prep(self, all_imgs, img_names, skipped_no_face):
-		print("\nMTCNN pipeline prep! (this might take a while...)")
-		mtcnn = MTCNN(image_size=112)
-		imgs_processed = mtcnn(all_imgs)
-		del all_imgs
-		torch.cuda.empty_cache()
-		# remove images without faces
-		print("\nFiltering images based on face detection...")
 
-		for img_name, img in tqdm(zip(img_names, imgs_processed), total=len(imgs_processed)):
-			if img is None:
-				img_details = self.get_img_details(img_name)
-				img_details["reason"] = "Could not find face"
-				skipped_no_face.append(img_details)
+	def get_embedding_batch(self, img_names):
 
-		imgs_processed = [x for x in imgs_processed if x is not None]
+		imgs = self.load_all_images(img_names)
+		imgs, img_names, skipped_df = self.preprocess(imgs)
 
-		# cleaning up
-		for item in skipped_no_face:
-			img_names.remove(item["img_path"])
+		print("\nGenerating embeddings...")
+		print("Input image shape: ", imgs[0].shape)
 
-		return imgs_processed, img_names, skipped_no_face
+		embeddings = self.embedding_loop(imgs)
 
-	def old_arcface_img_prep(self, all_imgs, img_names, skipped_no_face):
+		details = []
+		for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
+			data = self.get_img_details(img_name)
+			data["embedding"] = embedding
+			details.append(data)
+
+		embeddings_df = pd.DataFrame(details)
+		if len(skipped_df) > 0:
+			print("\nDEBUG: Both of following should be zero!")
+			print(">", len(set(embeddings_df["img_path"].tolist()).intersection(skipped_df["img_path"].tolist())))
+			union_len = len(set(embeddings_df["img_path"].tolist()).union(skipped_df["img_path"].tolist()))
+			added_len = len(skipped_df) + len(embeddings_df)
+			print(">", union_len - added_len)
+
+		return embeddings_df, skipped_df
+
+	def embedding_loop(self, imgs):
+		"""
+		Placeholder method
+		"""
+		return None
+
+	@staticmethod
+	def load_all_images(img_names):
+		"""
+		Placeholder method
+		"""
+		return None
+
+	def main(self):
+		"""
+		Get embeddings for BFW dataset for a given model. Returns embeddings+details and details of skipped images
+		"""
+
+		img_names = self.get_img_names(self.dataset)
+
+		if not self.incremental:
+			self.incremental = len(img_names)
+
+		total_batches = int(np.ceil(len(img_names)/self.incremental))
+
+		edf_list = []
+		sdf_list = []
+
+		for i, img_name_batch in enumerate(batch(img_names, self.incremental)):
+			# if i == 19:
+			# 	print('t')
+			print(f"> Batch {i + 1}/{total_batches}")
+			embeddings_dft, skipped_dft = self.get_embedding_batch(img_name_batch)
+			edf_list.append(embeddings_dft)
+			sdf_list.append(skipped_dft)
+
+		embeddings_df = pd.concat(edf_list, ignore_index=True)
+		skipped_df = pd.concat(sdf_list, ignore_index=True)
+
+		return embeddings_df, skipped_df
+
+	def filter_by_shape(self, imgs, dataset):
+		"""
+		No filter for arcface
+		"""
+		return imgs, []
+
+
+class ArcfaceEmbeddingGenerator(EmbeddingGenerator):
+
+	def __init__(self, dataset, device, batch_size, incremental, limit_images):
+		super().__init__()
+		self.dataset = dataset
+		self.model_str = 'arcface'
+		self.device = device
+		self.batch_size = batch_size
+		self.incremental = incremental
+		self.limit_images = limit_images
+		self.model = get_arcface_model()
+		self.af_mtcnn_det = None
+
+	@staticmethod
+	def load_all_images(img_names):
+		"""
+		Load all images specified in img_names as np array
+		"""
+		print("\nLoading images...")
+		return {img_name: cv2.imread(img_name) for img_name in img_names}
+
+	def img_prep(self, all_imgs, img_names, skipped_no_face):
 		"""
 		This method uses the MTCNN detector from Arcface rather than the one
 		from facenet py
@@ -187,15 +276,6 @@ class ImageManager:
 
 		return imgs_processed, img_names, skipped_no_face
 
-	@staticmethod
-	def vanilla_img_prep(all_imgs, img_names, skipped_no_face):
-		print("\nVanilla image prep...")
-		imgs_processed = []
-		to_tensor = transforms.ToTensor()
-		for img in all_imgs:
-			imgs_processed.append(to_tensor(img))
-		return imgs_processed, img_names, skipped_no_face
-
 	def get_mtcnn_det_for_arcface(self):
 		if self.af_mtcnn_det is None:
 			# Configure face detector
@@ -212,81 +292,7 @@ class ImageManager:
 			)
 		return self.af_mtcnn_det
 
-
-class EmbeddingGenerator(ImageManager):
-	def __init__(self, dataset, img_prep, model_str, device, batch_size, incremental, limit_images):
-		self.dataset = dataset
-		self.img_prep = img_prep
-		self.model_str = model_str
-		self.device = device
-		self.batch_size = batch_size
-		self.incremental = incremental
-		self.limit_images = limit_images
-		self.img_prep_map = {
-			'mtcnn': self.mtcnn_img_prep,
-			'arcface': self.arcface_img_prep,
-			'vanilla': self.vanilla_img_prep,
-		}
-		self.embedding_func = {
-			'facenet': self.facenet_embedding_loop,
-			'facenet-webface': self.facenet_embedding_loop,
-			'arcface': self.arcface_embedding_loop,
-		}
-		if self.model_str == "facenet":
-			self.model = InceptionResnetV1(pretrained="vggface2").eval()
-		elif self.model_str == "facenet-webface":
-			self.model = InceptionResnetV1(pretrained="casia-webface").eval()
-		elif self.model_str == "arcface":
-			self.model = get_arcface_model()
-		else:
-			raise ValueError('Unrecognised model!')
-
-
-	def preprocess(self, imgs):
-		""" Preprocessing pipeline with MTCNN. Returns tensor of processed images, their names,
-			and a data frame containing details of the skipped images. """
-
-		skipped = []
-		skipped_no_face = []
-
-		# Image size filtering
-		imgs, skipped_shape = self.filter_by_shape(imgs, self.dataset)
-		skipped += skipped_shape
-
-		# mtcnn preprocess
-		img_names = list(imgs.keys())
-		all_imgs = list(imgs.values())
-		del imgs
-		torch.cuda.empty_cache()
-
-		if all_imgs:
-
-			if self.img_prep in self.img_prep_map:
-				imgs_processed, img_names, skipped_no_face = self.img_prep_map[self.img_prep](
-					all_imgs, img_names, skipped_no_face
-				)
-			else:
-				raise KeyError('Unrecognised image prep key!')
-		else:
-			# Handles cases when no images passed the shape filtering
-			skipped_no_face = []
-
-		skipped_df = pd.DataFrame(skipped_shape + skipped_no_face)
-
-		print(f'N images with face detected: {len(imgs_processed)}')
-		print(f'N images with face undetected: {skipped_df.shape[0]}')
-
-		return imgs_processed, img_names, skipped_df
-
-	def facenet_embedding_loop(self, imgs):
-		self.model.to(self.device)
-		embedding_list = []
-		for img_batch in tqdm(batch(imgs, self.batch_size), total=np.ceil(len(imgs)/self.batch_size)):
-			img_batch = torch.stack(img_batch)
-			embedding_list.append(self.model(img_batch.to(self.device)).cpu().detach().numpy())
-		return np.vstack(embedding_list)
-
-	def arcface_embedding_loop(self, imgs):
+	def embedding_loop(self, imgs):
 		embedding_list = []
 		for img_batch in tqdm(batch(imgs, self.batch_size), total=np.ceil(len(imgs)/self.batch_size)):
 			img_batch = torch.stack(img_batch)
@@ -296,109 +302,92 @@ class EmbeddingGenerator(ImageManager):
 			embedding_list.append(self.model.get_outputs()[0].asnumpy())
 		return np.vstack(embedding_list)
 
-	def get_embedding_batch(self, img_names):
+class FacenetEmbeddingGenerator(EmbeddingGenerator):
 
-		imgs = self.load_all_images(img_names)
-		imgs, img_names, skipped_df = self.preprocess(imgs)
+	def __init__(self, dataset, device, batch_size, incremental, limit_images):
+		super().__init__()
+		self.dataset = dataset
+		self.model_str = 'facenet'
+		self.device = device
+		self.batch_size = batch_size
+		self.incremental = incremental
+		self.limit_images = limit_images
+		self.model = InceptionResnetV1(pretrained="vggface2").eval()
 
-		print("\nGenerating embeddings...")
-		print("Input image shape: ", imgs[0].shape)
 
-		embeddings = self.embedding_func[self.model_str](imgs)
-
-		details = []
-		for img_name, embedding in tqdm(zip(img_names, embeddings), total=len(embeddings)):
-			data = self.get_img_details(img_name)
-			data["embedding"] = embedding
-			details.append(data)
-
-		embeddings_df = pd.DataFrame(details)
-		if len(skipped_df) > 0:
-			print("\nDEBUG: Both of following should be zero!")
-			print(">", len(set(embeddings_df["img_path"].tolist()).intersection(skipped_df["img_path"].tolist())))
-			union_len = len(set(embeddings_df["img_path"].tolist()).union(skipped_df["img_path"].tolist()))
-			added_len = len(skipped_df) + len(embeddings_df)
-			print(">", union_len - added_len)
-
-		return embeddings_df, skipped_df
-
-	def main(self):
+	@staticmethod
+	def load_all_images(img_names):
 		"""
-		Get embeddings for BFW dataset for a given model. Returns embeddings+details and details of skipped images
+		Load all images specified in img_names as np array
 		"""
+		print("\nLoading images...")
+		images = {}
+		for img_name in img_names:
+			# alternatively allow np to load them directly
+			img = Image.open(img_name)
+			images[img_name] = img.copy()
+			img.close()
+		return images
 
-		img_names = self.get_img_names(self.dataset)
+	def filter_by_shape(self, imgs, dataset):
+		filter_img_shape = self.img_shape_map[dataset]
+		skipped = []
+		# filter by shape
+		print("\nFiltering images based on shape...")
+		for img_name, img in tqdm(imgs.items(), total=len(imgs)):
+			if img.size != filter_img_shape:
+				img_details = self.get_img_details(img_name)
+				img_details["reason"] = f"Expected shape {filter_img_shape}, got {img.size}"
+				skipped.append(img_details)
 
-		if not self.incremental:
-			self.incremental = len(img_names)
+		for item in skipped:
+			del imgs[item["img_path"]]
 
-		total_batches = int(np.ceil(len(img_names)/self.incremental))
+		torch.cuda.empty_cache()
+		return imgs, skipped
 
-		edf_list = []
-		sdf_list = []
+	def img_prep(self, all_imgs, img_names, skipped_no_face):
+		print("\nMTCNN pipeline prep! (this might take a while...)")
+		mtcnn = MTCNN()
+		mtcnn_output = mtcnn(all_imgs)
+		# del all_imgs
+		torch.cuda.empty_cache()
+		# remove images without faces
+		print("\nFiltering images based on face detection...")
 
-		for i, img_name_batch in enumerate(batch(img_names, self.incremental)):
-			print(f"> Batch {i + 1}/{total_batches}")
-			embeddings_dft, skipped_dft = self.get_embedding_batch(img_name_batch)
-			edf_list.append(embeddings_dft)
-			sdf_list.append(skipped_dft)
+		imgs_processed = []
 
-		embeddings_df = pd.concat(edf_list, ignore_index=True)
-		skipped_df = pd.concat(sdf_list, ignore_index=True)
+		for img_name, img in tqdm(zip(img_names, mtcnn_output), total=len(mtcnn_output)):
+			if img is None:
+				img_details = self.get_img_details(img_name)
+				img_details["reason"] = "Could not find face"
+				skipped_no_face.append(img_details)
+			else:
+				imgs_processed.append(img)
 
-		return embeddings_df, skipped_df
+		for i in imgs_processed:
+			if i is None:
+				print('Warning')
 
+		# cleaning up
+		for item in skipped_no_face:
+			img_names.remove(item["img_path"])
 
-def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None):
-	save_str = os.path.join(output_folder, f"{model}_{dataset}")
-	if limit_images is not None:
-		save_str = save_str + f"_limited_{limit_images}"
-	prepare_dir(save_str)
-	for k, df in data_to_save.items():
-		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
-	return save_str
+		return imgs_processed, img_names, skipped_no_face
 
+	def embedding_loop(self, imgs):
+		self.model.to(self.device)
+		embedding_list = []
+		for img_batch in tqdm(batch(imgs, self.batch_size), total=np.ceil(len(imgs)/self.batch_size)):
+			img_stack = torch.stack(img_batch)
+			embedding_list.append(self.model(img_stack.to(self.device)).cpu().detach().numpy())
+		return np.vstack(embedding_list)
 
-def print_completion_info(start, save_str):
-	print("\n"+"*"*80)
-	print("Generated embeddings!")
-	print()
-	print(f"Model: {args.model}, Dataset: {args.dataset}")
-	print()
-	print(f"Number of embeddings: {len(embeddings_df)}")
-	print(f"Saved to {save_str}_embeddings.[csv,pk]")
-	print()
-	print(f"Number skipped: {len(skipped_df)}")
-	print(f"Saved to {save_str}_skipped.[csv,pk]")
-	print(f'Time: {round(time.time() - start, 3)}s')
-	print("*"*80)
-
-
-def generate_pass(dataset, model, img_prep, incremental):
-	# Record time
-	start = time.time()
-
-	embeddings_folder = "embeddings"
-	# Set device
-	device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-	print((dataset, model, img_prep))
-
-	# with ExecuteSilently():
-	# Generate embeddings
-	embedding_generator = EmbeddingGenerator(
-		dataset, img_prep, model, device, batch_size=128, incremental=incremental, limit_images=None
-	)
-	embeddings_df, skipped_df = embedding_generator.main()
-
-	# Save outputs
-	data_dic = {'embeddings': embeddings_df, 'skipped': skipped_df}
-	save_outputs(data_dic, embeddings_folder, model, dataset)
-
-	# Record time
-	time_taken = np.round(time.time() - start)
-
-	# Logging
-	print(f'generate_all_embeddings for {dataset} {model} {img_prep} took {time_taken}!')
+class WebfaceEmbeddingGenerator(FacenetEmbeddingGenerator):
+	def __init__(self, dataset, img_prep, device, batch_size, incremental, limit_images):
+		super().__init__(dataset, img_prep, device, batch_size, incremental, limit_images)
+		self.model_str = 'facenet-webface'
+		self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 
 
 def generate_all_embeddings():
@@ -406,14 +395,14 @@ def generate_all_embeddings():
 	very_start = time.time()
 	# Create a task list
 	task_list = [
-		# ('rfw', 'facenet', 'mtcnn'),
-		# ('rfw', 'facenet-webface', 'mtcnn'),
-		# ('bfw', 'facenet-webface', 'mtcnn'),
-		('bfw', 'arcface', 'arcface'),
+		# ('rfw', 'facenet'),
+		('rfw', 'facenet-webface'),
+		# ('bfw', 'facenet-webface'),
+		# ('bfw', 'arcface'),
 	]
-	incremental = 20
-	for dataset, model, img_prep in task_list:
-		generate_pass(dataset, model, img_prep, incremental)
+	incremental = 200
+	for dataset, model, in task_list:
+		generate_one_embedding(dataset, model, incremental)
 
 	time_taken = np.round(time.time() - very_start)
 	print(f'generate_all_embeddings took {time_taken} in total!')
@@ -473,23 +462,9 @@ if __name__ == '__main__':
 	device = determine_device(args.cpu)
 
 	# Print run info
-	args.model = 'arcface'
-	args.img_prep = 'arcface'
-	print((args.model, args.batch, args.img_prep))
+	print(f'Starting run for {(args.dataset, args.model, args.incremental)}')
 
-	# Generate embeddings
-	embedding_generator = EmbeddingGenerator(
-		args.dataset, args.img_prep, args.model, device, args.batch, args.incremental, args.limit
-	)
-	embeddings_df, skipped_df = embedding_generator.main()
-
-	# Save outputs
-	data_dic = {'embeddings': embeddings_df, 'skipped': skipped_df}
-	save_str = save_outputs(data_dic, embeddings_folder, args.model, args.dataset, args.limit)
-
-	# Print completion information
-	print_completion_info(start, save_str)
-
+	generate_one_embedding(args.dataset, args.model, args.incremental)
 
 
 

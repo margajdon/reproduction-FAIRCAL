@@ -8,7 +8,16 @@ from csv_creator import CsvCreator
 from generate_embeddings import save_outputs
 
 
-def rfw_comparison(model_name, dataset='rfw'):
+def cosine_calc(model_name, dataset):
+    if dataset == 'rfw':
+        return rfw_cosine_calc(model_name)
+    elif dataset == 'bfw':
+        return bfw_cosine_calc(model_name)
+    else:
+        raise ValueError(f'Unrecognised dataset: {dataset}')
+
+
+def rfw_cosine_calc(model_name):
     # Load data rfw ddata
     rfw_df = CsvCreator.get_rfw_df()
 
@@ -17,7 +26,7 @@ def rfw_comparison(model_name, dataset='rfw'):
     rfw_df['image_id_2_clean'] = rfw_df['id2'].map(str) + '_' + rfw_df['num2'].map(str)
 
     # Load the embedding data
-    emb_df = pickle.load(open(f'./embeddings/{model_name}_{dataset}_embeddings.pk', 'rb'))
+    emb_df = pickle.load(open(f'./embeddings/{model_name}_rfw_embeddings.pk', 'rb'))
     emb_df['image_id_clean'] = emb_df['image_id'].map(lambda x: x.replace('000', ''))
 
     # Filter out rows that don't have an embedding
@@ -45,7 +54,7 @@ def rfw_comparison(model_name, dataset='rfw'):
     return rfw_clean[cols_to_return]
 
 
-def bfw_comparison(model_name, show_plot=False):
+def bfw_cosine_calc(model_name):
     # Load data bfw ddata
     bfw_df = pd.read_csv('./data/bfw/bfw.csv')
 
@@ -81,32 +90,6 @@ def bfw_comparison(model_name, show_plot=False):
     # Calculate the cosine similarities of the pair
     bfw_clean['cos_sim'] = bfw_clean['embedding_pair'].map(lambda x: cos_sim(x[0], x[1]))
 
-
-    if show_plot:
-
-        # Calculate difference and report metrics
-        difference = (bfw_clean['cos_sim'] - bfw_clean['arcface']).to_numpy()
-        mean = round(difference.mean(), 3)
-        std = round(difference.std(), 3)
-        corr = round(bfw_clean[["cos_sim", "arcface"]].corr()["cos_sim"]["arcface"], 3)
-
-        print("Comparing cosine similarity of photo-pair embeddings")
-        print(f'Mean: {mean}')
-        print(f'Std: {std}')
-        print(f'Linear corr: {corr}')
-
-        difference_same = (bfw_clean[bfw_clean["label"] == 1]['cos_sim'] - bfw_clean[bfw_clean["label"] == 1]['arcface']).to_numpy()
-        difference_diff = (bfw_clean[bfw_clean["label"] == 0]['cos_sim'] - bfw_clean[bfw_clean["label"] == 0]['arcface']).to_numpy()
-
-        plt.hist(difference_same, bins=40, alpha=0.7)
-        plt.hist(difference_diff, bins=40, alpha=0.7)
-        plt.plot([], [], ' ', label=f'n={len(difference)}\nMean={mean}\nStd={std}\nCorr={corr}')
-        plt.xlabel("predicted - reference")
-        plt.ylabel("frequency")
-        plt.legend(handletextpad=.0, handlelength=0)
-        plt.title("Comparison of cosine similarity of photo-pair embeddings")
-        plt.show()
-
     # Create a list with the columns we want to return
     cols_to_return = [c for c in bfw_clean.columns if c not in ('embedding1', 'embedding2')]
 
@@ -129,15 +112,15 @@ def get_cross_entropy_loss(y_label, y_pred):
 def derive_cosine_sim_for_all_sets():
     very_start = time.time()
     task_list = [
-        # ('facenet-webface', 'bfw'),
+        ('facenet-webface', 'bfw'),
         ('arcface', 'bfw'),
-        # ('facenet-webface', 'rfw'),
-        # ('facenet', 'rfw')
+        ('facenet-webface', 'rfw'),
+        ('facenet', 'rfw')
     ]
     for model, dataset in task_list:
         start = time.time()
-        cos_df = bfw_comparison(model, show_plot=True)
-        save_outputs({'cosin_sim': cos_df}, 'similarities', model, 'bfw')
+        cos_df = cosine_calc(model, dataset)
+        save_outputs({'cosin_sim': cos_df}, 'similarities', model, dataset)
         print(f'derive_cosin_sim_for_all_sets {model} {dataset} took: {round(time.time() - start)} seconds.')
     print(f'derive_cosin_sim_for_all_sets total took: {round(time.time() - very_start)} seconds.')
 

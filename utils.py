@@ -3,6 +3,18 @@ from sklearn.metrics import roc_curve
 import os
 import torch
 import sys
+import pickle
+
+
+
+def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None):
+	save_str = os.path.join(output_folder, f"{model}_{dataset}")
+	if limit_images is not None:
+		save_str = save_str + f"_limited_{limit_images}"
+	prepare_dir(save_str)
+	for k, df in data_to_save.items():
+		pickle.dump(df, open(f"{save_str}_{k}.pk", "wb"))
+	return save_str
 
 
 def determine_device(cpu_bool):

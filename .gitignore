@@ -18,3 +18,8 @@ experiments_copy3/
 experiments_copy4/
 "exp"
 /experiments.zip
+/.ipynb_checkpoints/arcface_inference-checkpoint.ipynb
+/embeddings_copy/arcface_bfw_embeddings.pk
+/embeddings_copy/facenet-webface_bfw_embeddings.pk
+/embeddings_copy/facenet-webface_rfw_embeddings.pk
+/embeddings_copy/facenet_rfw_embeddings.pk

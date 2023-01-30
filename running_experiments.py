@@ -12,6 +12,7 @@ from utils import compute_scores
 class MeasureCollecter:
     def __init__(self):
         self.nbins = None
+        self.approach = None
 
     def collect_measures(self, approach, ground_truth, scores, fair_scores, confidences, subgroup, subgroup_scores, att):
         if approach in ('baseline', 'faircal', 'agenda', 'gmm-discrete'):

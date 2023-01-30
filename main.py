@@ -99,12 +99,10 @@ def argument_parsing_func():
 
 def run_complete_analysis():
     main(
-        # datasets=['rfw', 'bfw'],
-        datasets=['rfw'],
+        datasets=['rfw', 'bfw'],
         features='all',
         approaches=['baseline', 'faircal', 'gmm-discrete'],
-        # approaches=['gmm-discrete'],
-        # approaches=['faircal'],
+        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
         calibration_methods=['beta'],
     )
 
@@ -112,9 +110,9 @@ if __name__ == '__main__':
     # Argument parsing
     args = argument_parsing_func()
     # args.dataset = 'bfw'
-    # args.features = 'facenet-webface'
+    # args.features = 'arcface'
     # args.calibration_methods = 'all'
-    # args.approaches = ['binning']
+    # args.approaches = ['baseline']
     # Run main
     main(
         args.datasets, args.features, args.approaches, args.calibration_methods
