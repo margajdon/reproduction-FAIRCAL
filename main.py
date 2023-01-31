@@ -16,6 +16,7 @@ from utils import compute_scores
 from sklearn.metrics import roc_curve
 
 
+
 experiments_folder = 'experiments/'
 ftc_settings_folder = 'experiments/ftc_settings/'
 agenda_settings_folder = 'experiments/agenda_settings/'
@@ -225,6 +226,7 @@ def gather_results(dataset_name, db_input, nbins, n_clusters, fpr_thr, feature, 
             'brier': brier
         }
 
+
     return data
 
 
@@ -282,13 +284,21 @@ def main():
             else:
                 features = ['facenet-webface', 'arcface']
         else:
-            features = [args.features]
-        if args.approaches == 'all':
-            args.approaches = ['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
-        if args.calibration_methods == 'all':
-            args.calibration_methods = ['binning', 'isotonic_regression', 'beta']
+            features = args.features
 
+        if args.approaches == 'all':
+            approaches = ['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'oracle']
+        else:
+            approaches = args.approaches
+
+        if args.calibration_methods == 'all':
+            calibration_methods = ['binning', 'isotonic_regression', 'beta']
+        else:
+            calibration_methods = args.calibration_methods
+
+        print(dataset, features, approaches, calibration_methods)
         n_clusters = [100] #[500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
+        n_clusters = [4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
         fpr_thr_list = [1e-3]
         for n_cluster in n_clusters:
             for fpr_thr in fpr_thr_list:
@@ -296,10 +306,10 @@ def main():
                 for feature in features:
                     create_folder(f"{experiments_folder}/{dataset}/{feature}")
                     print('Feature: %s' % feature)
-                    for approach in args.approaches:
+                    for approach in approaches:
                         create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}")
                         print('   Approach: %s' % approach)
-                        for calibration_method in args.calibration_methods:
+                        for calibration_method in calibration_methods:
                             create_folder(f"{experiments_folder}/{dataset}/{feature}/{approach}/{calibration_method}")
                             print('      Calibration Method: %s' % calibration_method)
                             if 'faircal' in approach:
