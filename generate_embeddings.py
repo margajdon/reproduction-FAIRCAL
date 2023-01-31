@@ -58,20 +58,18 @@ def generate_one_embedding(dataset, model, incremental, batch_size=128):
 	device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 	# Set the embedding generator
+	embedding_generator = None
 	if model == 'arcface':
-		EG = ArcfaceEmbeddingGenerator
+		embedding_generator = ArcfaceEmbeddingGenerator(dataset, device, batch_size, incremental, limit_images=None)
 	elif model == 'facenet':
-		EG = FacenetEmbeddingGenerator
+		embedding_generator = FacenetEmbeddingGenerator(dataset, device, batch_size, incremental, limit_images=None)
 	elif model == 'facenet-webface':
-		EG = FacenetEmbeddingGenerator
+		embedding_generator = WebfaceEmbeddingGenerator(dataset, device, batch_size, incremental, limit_images=None)
 	else:
 		ValueError(f'Unrecognised model: {model}!')
 
 	# with ExecuteSilently():
 	# Generate embeddings
-	embedding_generator = EG(
-		dataset, device, batch_size=batch_size, incremental=incremental, limit_images=None
-	)
 	embeddings_df, skipped_df = embedding_generator.main()
 
 	# Save outputs
@@ -376,8 +374,8 @@ class FacenetEmbeddingGenerator(EmbeddingGenerator):
 		return np.vstack(embedding_list)
 
 class WebfaceEmbeddingGenerator(FacenetEmbeddingGenerator):
-	def __init__(self, dataset, img_prep, device, batch_size, incremental, limit_images):
-		super().__init__(dataset, img_prep, device, batch_size, incremental, limit_images)
+	def __init__(self, dataset, device, batch_size, incremental, limit_images):
+		super().__init__(dataset, device, batch_size, incremental, limit_images)
 		self.model_str = 'facenet-webface'
 		self.model = InceptionResnetV1(pretrained="casia-webface").eval()
 
@@ -387,12 +385,12 @@ def generate_all_embeddings():
 	very_start = time.time()
 	# Create a task list
 	task_list = [
-		# ('rfw', 'facenet'),
 		('rfw', 'facenet-webface'),
-		# ('bfw', 'facenet-webface'),
-		# ('bfw', 'arcface'),
+		('rfw', 'facenet'),
+		('bfw', 'facenet-webface'),
+		('bfw', 'arcface'),
 	]
-	incremental = 100
+	incremental = 200
 	for dataset, model, in task_list:
 		generate_one_embedding(dataset, model, incremental)
 
