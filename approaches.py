@@ -14,7 +14,7 @@ from sklearn.metrics import roc_curve
 from calibration_methods import BinningCalibration
 from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
-from utils import prepare_dir
+from utils import prepare_dir, set_seed
 
 import torch
 
@@ -22,6 +22,10 @@ experiments_folder = 'experiments/'
 
 
 class ApproachManager(AgendaApproach, FtcApproach):
+    """
+    Class that contains all the functionality relating to the different approaches.
+
+    """
     nbins = None
     dataset = None
     approach = None
@@ -32,6 +36,10 @@ class ApproachManager(AgendaApproach, FtcApproach):
     subgroups = None
 
     def get_calibration_method(self, scores, ground_truth, score_min=-1, score_max=1):
+        """
+        This method returns the calibration. Three different calibration methods are supported:
+        binning, isotonic_regression and beta.
+        """
         if self.calibration_method == 'binning':
             calibration = BinningCalibration(
                 scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max, nbins=self.nbins
@@ -47,10 +55,16 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return calibration
 
     def baseline(self, scores, ground_truth, score_min=-1, score_max=1):
+        """
+        This is the baseline approach that derives the confidences.
+        """
         calibration = self.get_calibration_method(scores, ground_truth, score_min, score_max)
         return {'cal': calibration.predict(scores['cal']), 'test': calibration.predict(scores['test'])}
 
     def oracle(self, scores, ground_truth, subgroup_scores):
+        """
+        This is the oracle approach that derives the confidences.
+        """
         confidences = {}
         for dataset in ['cal', 'test']:
             confidences[dataset] = {}
@@ -72,7 +86,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 confidences['test'][att][select['test']] = calibration.predict(scores['test'][select['test']])
         return confidences
 
-    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data, km_random_state=42):
+    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data):
         # k-means algorithm
         saveto = f"experiments/kmeans/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}.npy"
         if os.path.exists(saveto):
@@ -99,8 +113,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
         else:
             raise ValueError(f"Approach {self.approach} does not map to a clustering algorithm!")
 
-        gpu_bool = torch.cuda.is_available()
-
+        set_seed()
         cluster_method.fit(embeddings.astype('float32'))
         np.save(saveto, cluster_method)
 
@@ -182,7 +195,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return scores, ground_truth, confidences, fair_scores
 
     def get_metrics(
-            self, embedding_data, db, db_fold, fold, scores, ground_truth, subgroup_scores
+            self, embedding_data, db_fold, fold, scores, ground_truth, subgroup_scores
     ):
         fair_scores = None
         if self.approach == 'baseline':
@@ -246,7 +259,3 @@ class ApproachManager(AgendaApproach, FtcApproach):
         Placeholder method to be overwritten
         """
         return {}, None, None, None
-
-
-
-

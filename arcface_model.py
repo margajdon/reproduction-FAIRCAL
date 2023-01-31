@@ -2,23 +2,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from scipy import misc
-import random
 import sklearn
-from sklearn.decomposition import PCA
-from time import sleep
-from easydict import EasyDict as edict
 import cv2
-import sys
 import numpy as np
 import mxnet as mx
-import os
 
 from skimage import transform as trans
-import matplotlib.pyplot as plt
 from mxnet.contrib.onnx.onnx2mx.import_model import import_model
-
-from dependencies.mtcnn_detector import MtcnnDetector
 
 
 def get_model(ctx, model):
@@ -125,19 +115,10 @@ def get_arcface_model():
     else:
         ctx = mx.gpu(0)
 
-    # Download first image
-    mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/player1.jpg')
-    # Download second image
-    mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/player2.jpg')
     # Download onnx model
     mx.test_utils.download('https://s3.amazonaws.com/onnx-model-zoo/arcface/resnet100.onnx')
     # Path to ONNX model
     model_name = 'resnet100.onnx'
 
-
     # Load ONNX model
     return get_model(ctx , model_name)
-
-
-
-

@@ -1,14 +1,17 @@
 import itertools
-import pandas as pd
 import numpy as np
 import argparse
-import pickle
 import time
 
-from running_experiments import RfwExperimentRunner, BfwExperimentRunner
+from fairness_analyzer import RfwFairnessAnalyzer, BfwFairnessAnalyzer
 from utils import FileManager
 
-def main(datasets, features, approaches, calibration_methods, n_clusters=None, fpr_thr_list=None):
+
+def fairness_analysis(datasets, features, approaches, calibration_methods, n_clusters=None, fpr_thr_list=None):
+    """
+    This function accepts a list of datasets, features, approaches, n_clusters, fpr_ths in order to complete the
+    fairness assessment of multiple settings in a single pass.
+    """
     # Start time recording
     total_start = time.time()
     # Set the default number of clusters and fpr_thr_list
@@ -17,7 +20,7 @@ def main(datasets, features, approaches, calibration_methods, n_clusters=None, f
     if fpr_thr_list is None:
         fpr_thr_list = [1e-3]
     # Create an experiment manager dictionary
-    experiment_runner_dic = {'rfw': RfwExperimentRunner, 'bfw': BfwExperimentRunner}
+    experiment_runner_dic = {'rfw': RfwFairnessAnalyzer, 'bfw': BfwFairnessAnalyzer}
     # Loop through the datasets
     for dataset in datasets:
         # Instantiate the experiment runner for the dataset
@@ -45,7 +48,7 @@ def main(datasets, features, approaches, calibration_methods, n_clusters=None, f
 def assign_parameters(features, calibration_methods, approaches, all_features):
     """
     This function simply updates the parameters of features, calibration_methods and approaches variable such that the
-    user can pass 'all' instead of having to explicitely name out all the parameters.
+    user can pass 'all' instead of having to explicitly name out all the parameters.
     """
     if features == 'all':
         features = all_features
@@ -98,23 +101,19 @@ def argument_parsing_func():
     return args
 
 def run_complete_analysis():
-    main(
+    fairness_analysis(
         datasets=['rfw', 'bfw'],
         features='all',
-        # approaches=['baseline', 'faircal', 'gmm-discrete'],
-        approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
+        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
+        approaches=['faircal'],
         calibration_methods=['beta'],
     )
 
 if __name__ == '__main__':
     # Argument parsing
     args = argument_parsing_func()
-    # args.dataset = 'bfw'
-    # args.features = 'arcface'
-    # args.calibration_methods = 'all'
-    # args.approaches = ['baseline']
     # Run main
-    main(
+    fairness_analysis(
         args.datasets, args.features, args.approaches, args.calibration_methods
     )
 

@@ -18,7 +18,7 @@ def cosine_calc(model_name, dataset):
 
 
 def rfw_cosine_calc(model_name):
-    # Load data rfw ddata
+    # Load data rfw data
     rfw_df = CsvCreator.get_rfw_df()
 
     # Create a column id to map the embeddings
@@ -98,16 +98,6 @@ def bfw_cosine_calc(model_name):
 
 def cos_sim(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
-
-def get_cross_entropy_loss(y_label, y_pred):
-    y_pred_clipped = np.clip(y_pred, 1e-9, 1 - 1e-9)
-    return -np.mean(
-        (1 - y_label) * np.log(1 - y_pred_clipped + 1e-9)
-        +
-        y_label * np.log(y_pred_clipped + 1e-9),
-        axis=0
-    )
-
 
 def derive_cosine_sim_for_all_sets():
     very_start = time.time()

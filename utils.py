@@ -7,6 +7,9 @@ import pickle
 
 
 def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None):
+    """
+    This is a helper function to save dataframe outputs under a specific path.
+    """
     save_str = os.path.join(output_folder, f"{model}_{dataset}")
     if limit_images is not None:
         save_str = save_str + f"_limited_{limit_images}"
@@ -16,6 +19,11 @@ def save_outputs(data_to_save, output_folder, model, dataset, limit_images=None)
     return save_str
 
 def determine_device(cpu_bool):
+    """
+    This function determines what device to use.
+
+    If cpu_bool is True, then the CPU is used. Otherwise, CUDA is used if a gpu is available.
+    """
     if cpu_bool:
         device = torch.device("cpu")
     else:
@@ -25,6 +33,10 @@ def determine_device(cpu_bool):
 
 
 def prepare_dir(file_path):
+    """
+    This function is used to create the directories needed to output a path. If the directories already exist, the
+    function continues.
+    """
     dir_path = '/'.join(file_path.split('/')[:-1])
     try:
         os.makedirs(dir_path)
@@ -34,6 +46,8 @@ def prepare_dir(file_path):
 
 def batch(iterable, n=1):
     """
+    Function to create a batch of images in constant chunks.
+    Adapted from:
 	https://stackoverflow.com/questions/8290397/how-to-split-an-iterable-in-constant-size-chunks
 	"""
     l = len(iterable)
@@ -42,6 +56,9 @@ def batch(iterable, n=1):
 
 
 def determine_edges(scores, nbins, indicesQ=False, score_min=-1, score_max=1):
+    """
+    Function used to detemine the edges for calibration.
+    """
     if nbins > len(scores):
         print('More bins than values. Attempting to return bins with one value each.')
         return determine_edges(scores, len(scores), indicesQ=indicesQ, score_min=score_min, score_max=score_max)
@@ -72,6 +89,9 @@ def determine_edges(scores, nbins, indicesQ=False, score_min=-1, score_max=1):
 
 
 def bin_confidences_and_accuracies(confidences, ground_truth, bin_edges, indices):
+    """
+    Function to derive the bin confidences and accuracies.
+    """
     i = np.arange(0, bin_edges.size-1)
     aux = indices == i.reshape((-1, 1))
     counts = aux.sum(axis=1)
@@ -85,6 +105,9 @@ def bin_confidences_and_accuracies(confidences, ground_truth, bin_edges, indices
 
 
 def get_ks(confidences, ground_truth):
+    """
+    Derive the KS calibration metric.
+    """
     n = len(ground_truth)
     order_sort = np.argsort(confidences)
     ks = np.max(np.abs(np.cumsum(confidences[order_sort])/n-np.cumsum(ground_truth[order_sort])/n))
@@ -92,6 +115,9 @@ def get_ks(confidences, ground_truth):
 
 
 def get_brier(confidences, ground_truth):
+    """
+    Derive the brier score.
+    """
     # Compute Brier Score
     brier = np.zeros(confidences.shape)
     brier[ground_truth] = (1-confidences[ground_truth])**2
@@ -101,6 +127,9 @@ def get_brier(confidences, ground_truth):
 
 
 def get_ece(confidences, ground_truth, nbins):
+    """
+    Function to calculate the Expected Calibration Error.
+    """
     # Repeated code from determine edges. Here it is okay if the bin edges are not uniquely defined
     confidences_sorted = confidences.copy()
     confidences_index = confidences.argsort()
@@ -127,11 +156,13 @@ def get_ece(confidences, ground_truth, nbins):
 
 
 def compute_scores(confidences, ground_truth, nbins):
-
-    # Compute ECE
+    """
+    Function to derive all the calibration metrics.
+    """
+    # Compute ECE (Expectation Calibration Error)
     ece = get_ece(confidences, ground_truth, nbins)
 
-    # Compute Brier
+    # Compute Brier score
     brier = get_brier(confidences, ground_truth)
 
     # Compute KS
@@ -141,6 +172,9 @@ def compute_scores(confidences, ground_truth, nbins):
 
 
 def get_binary_clf_stats(ground_truth, scores):
+    """
+    Function to derive the binary classification statistics.
+    """
     thr = np.unique(scores.copy())
     # false positives
     fp = np.sum(scores[np.logical_not(ground_truth)] >= thr.reshape(-1, 1), axis=1)
@@ -157,11 +191,18 @@ def get_binary_clf_stats(ground_truth, scores):
 
 
 def set_seed(seed=0):
+    """
+    Function to set a seed for the clustering package PyCave.
+    """
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     np.random.seed(seed)
 
+
 class FileManager:
+    """
+    Small class to help with the file paths and saving.
+    """
     @staticmethod
     def get_save_file_path(dataset, feature, approach, calibration_method, nbins, n_cluster, fpr_thr):
         experiments_folder = 'experiments/'
@@ -184,6 +225,8 @@ class FileManager:
 
 class ExecuteSilently(object):
     """
+    This method can be used as a context to execute code silently.
+
     https://codereview.stackexchange.com/questions/25417/is-there-a-better-way-to-make-a-function-silent-on-need
     """
     def __init__(self, stdout=None, stderr=None):
