@@ -84,7 +84,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     if approach == 'faircal':
         cluster_method = KMeans(n_clusters)
     elif approach == 'gmm-discrete':
-        cluster_method = GaussianMixture(num_components=n_clusters)
+        cluster_method = GaussianMixture(num_components=n_clusters, covariance_type='full')
         # cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
