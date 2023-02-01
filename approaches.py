@@ -1,10 +1,9 @@
 import numpy as np
 import os
 import pandas as pd
-# from pycave.bayes import GaussianMixture
-# from pycave.clustering import KMeans
-from sklearn.mixture import GaussianMixture
-from sklearn.cluster import KMeans
+from pycave.bayes import GaussianMixture
+from pycave.clustering import KMeans
+from sklearn.mixture import GaussianMixture as SkGaussianMixture
 import torch
 from torch import nn
 import torch.optim as optim
@@ -379,13 +378,14 @@ class ApproachManager(AgendaApproach, FtcApproach):
         embeddings = self.collect_embeddings(db_fold['cal'], embedding_data)
 
         if self.approach in ('faircal', 'fsn'):
-            cluster_model = KMeans(self.n_cluster, init_params='kmeans', random_state=seed)
+            cluster_model = self.kmeans_clustering(embeddings)
         elif self.approach == 'faircal-gmm':
-            cluster_model = GaussianMixture(self.n_cluster, init_params='kmeans', random_state=seed)
+            cluster_model = self.gmm_clustering(embeddings)
         else:
             raise ValueError(f'Unrecognised approach: {self.approach}')
 
-        cluster_model.fit(embeddings)
+        cluster_model.fit(embeddings.astype('float32'))
+        prepare_dir(saveto)
         np.save(saveto, cluster_model)
 
         r = self.collect_miscellania(self.n_cluster, cluster_model, db_fold, embedding_data)
@@ -464,6 +464,38 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 confidences[dataset] = confidences[dataset] / p
 
         return scores, ground_truth, confidences, fair_scores
+
+    def kmeans_clustering(self, embeddings):
+        set_seed()
+        gpu_bool = torch.cuda.is_available()
+        if gpu_bool:
+            cluster_method = KMeans(num_clusters=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1))
+        else:
+            cluster_method = KMeans(num_clusters=self.n_cluster)
+        cluster_method.fit(embeddings.astype('float32'))
+
+        return cluster_method
+
+    def gmm_clustering(self, embeddings, seed=0):
+        set_seed(seed)
+        gpu_bool = torch.cuda.is_available()
+        try:
+            if gpu_bool:
+                cluster_method = GaussianMixture(
+                    num_components=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1),
+                    covariance_type='full'
+                )
+            else:
+                cluster_method = GaussianMixture(num_components=self.n_cluster, covariance_type='full')
+            cluster_method.fit(embeddings.astype('float32'))
+        except Exception as e:
+            print(f'An exception occured: {e}')
+            print('PyCave GMM failed. Defaulting back to sklearn GMM. This will take longer...')
+            cluster_method = SkGaussianMixture(self.n_cluster, random_state=seed)
+
+            cluster_method.fit(embeddings.astype('float32'))
+
+        return cluster_method
 
     def get_metrics(
             self, embedding_data, db_fold, fold, scores, ground_truth, subgroup_scores

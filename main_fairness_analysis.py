@@ -17,7 +17,6 @@ def fairness_analysis(datasets, features, approaches, calibration_methods, n_clu
     # Set the default number of clusters and fpr_thr_list
     if n_clusters is None:
         n_clusters = [100]
-        print('Fifty clusters')
     if fpr_thr_list is None:
         fpr_thr_list = [1e-3]
     # Create an experiment manager dictionary
@@ -34,7 +33,7 @@ def fairness_analysis(datasets, features, approaches, calibration_methods, n_clu
             experiment_runner = experiment_runner_dic[dataset](
                 n_cluster, fpr_thr, feature, approach, calibration_method
             )
-            print_loop_log(fpr_thr, feature, approach, calibration_method, n_cluster)
+            print_loop_log(dataset, fpr_thr, feature, approach, calibration_method, n_cluster)
             saveto = FileManager.get_save_file_path(
                 dataset, feature, approach, calibration_method, experiment_runner.nbins, n_cluster, fpr_thr
             )
@@ -62,7 +61,8 @@ def assign_parameters(features, calibration_methods, approaches, all_features):
     return features, calibration_methods, approaches
 
 
-def print_loop_log(fpr_thr, feature, approach, calibration_method, n_cluster):
+def print_loop_log(dataset, fpr_thr, feature, approach, calibration_method, n_cluster):
+    print(f'dataset: {dataset}')
     print('fpr_thr: %.0e' % fpr_thr)
     print('Feature: %s' % feature)
     print('   Approach: %s' % approach)
@@ -106,12 +106,12 @@ def run_complete_analysis():
     This function runs the complete fairness analysis under all settings.
     """
     fairness_analysis(
-        # datasets=['rfw', 'bfw'],
-        datasets=['bfw'],
-        # features='all',
-        features='arcface',
-        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
-        approaches=['faircal-gmm'],
+        datasets=['rfw', 'bfw'],
+        # datasets=['bfw'],
+        features='all',
+        # features='arcface',
+        approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
+        # approaches=['faircal-gmm'],
         calibration_methods=['beta'],
     )
 
