@@ -16,7 +16,7 @@ def fairness_analysis(datasets, features, approaches, calibration_methods, n_clu
     total_start = time.time()
     # Set the default number of clusters and fpr_thr_list
     if n_clusters is None:
-        n_clusters = [50]
+        n_clusters = [100]
         print('Fifty clusters')
     if fpr_thr_list is None:
         fpr_thr_list = [1e-3]

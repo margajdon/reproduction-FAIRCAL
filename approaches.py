@@ -1,24 +1,290 @@
 import numpy as np
 import os
 import pandas as pd
-from pycave.bayes import GaussianMixture
-from pycave.clustering import KMeans
-
-from approaches_agenda import AgendaApproach
-from approaches_ftc import FtcApproach
+# from pycave.bayes import GaussianMixture
+# from pycave.clustering import KMeans
+from sklearn.mixture import GaussianMixture
+from sklearn.cluster import KMeans
+import torch
+from torch import nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 pd.options.mode.chained_assignment = None
 
 from sklearn.metrics import roc_curve
-
 from calibration_methods import BinningCalibration
 from calibration_methods import IsotonicCalibration
 from calibration_methods import BetaCalibration
 from utils import prepare_dir, set_seed
 
-import torch
 
 experiments_folder = 'experiments/'
+
+class AgendaApproach:
+    """
+    The AgendaApproach class contains all the methods that are specific to the Agenda approach.
+    """
+
+    dataset = None
+    def agenda(self, db_fold, embedding_data):
+
+        embeddings, subgroup_embeddings, id_embeddings = self.collect_embeddings_agenda(db_fold['cal'], embedding_data)
+
+        embeddings_train, embeddings_test, id_train, id_test, subgroup_train, subgroup_test \
+            = train_test_split(embeddings, id_embeddings, subgroup_embeddings, test_size=0.2)
+
+        id_train = pd.Series(id_train, dtype="category").cat.codes.values
+        id_test = pd.Series(id_test, dtype="category").cat.codes.values
+
+        train_dataloader = DataLoader(
+            AgendaEmbeddingsDataset(embeddings_train, id_train, subgroup_train),
+            batch_size=400,
+            shuffle=True,
+            num_workers=0
+        )
+        test_dataloader = DataLoader(
+            AgendaEmbeddingsDataset(embeddings_test, id_test, subgroup_test),
+            batch_size=400,
+            shuffle=True,
+            num_workers=0
+        )
+
+        n_id = len(np.unique(id_train))
+        n_subgroup = len(np.unique(subgroup_train))
+
+
+        Nep = 100
+        Tep = 10
+        epochs_stage1 = 50
+        epochs_stage2 = 25
+        epochs_stage3 = 5
+        epochs_stage4 = 5
+
+        loss_fn = nn.CrossEntropyLoss()
+        # Initialize
+        modelM = NeuralNetworkM().cuda()
+        modelC = NeuralNetworkC(n_id).cuda()
+
+        optimizer_stage1 = optim.Adam(list(modelM.parameters())+list(modelC.parameters()), lr=1e-3)
+        ## STAGE 1 ##
+        print(f"STAGE 1")
+        for epoch in tqdm(range(epochs_stage1)):
+            if torch.cuda.is_available():
+                modelM.train()
+                modelC.train()
+            for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
+                if torch.cuda.is_available():
+                    X = X.cuda()
+                    y_id = y_id.cuda()
+                # Compute prediction and loss
+                prob = modelM(X.float())
+                prob = modelC(prob)
+                loss = loss_fn(prob,y_id.long())
+
+                # Backpropagation
+                optimizer_stage1.zero_grad()
+                loss.backward()
+                optimizer_stage1.step()
+
+        ## STAGE 2 ##
+        print(f"STAGE 2")
+        for i in tqdm(range(Nep)):
+
+            if i % Tep == 0:
+                if torch.cuda.is_available():
+                    modelE = NeuralNetworkE(n_subgroup).cuda()
+                optimizer_stage2 = optim.Adam(modelE.parameters(), lr=1e-3)
+    #             print(f"STAGE 2")
+                for epoch in range(epochs_stage2):
+                    for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
+                        if torch.cuda.is_available():
+                            X = X.cuda()
+                            y_subgroup = y_subgroup.cuda()
+                        prob = modelM(X.float())
+                        prob = modelE(prob)
+                        loss = loss_fn(prob,y_subgroup.long())
+
+                        # Backpropagation
+                        optimizer_stage2.zero_grad()
+                        loss.backward()
+                        optimizer_stage2.step()
+
+            ## STAGE 3 ##
+            optimizer_stage3 = optim.Adam(list(modelM.parameters())+list(modelC.parameters()), lr=1e-3)
+        #     print(f"STAGE 3")
+            for epoch in range(epochs_stage3):
+                for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
+                    if torch.cuda.is_available():
+                        X = X.cuda()
+                        y_id = y_id.cuda()
+                        y_subgroup = y_subgroup.cuda()
+                    f_out = modelM(X.float())
+                    prob_class = modelC(f_out)
+                    prob_subgroup = modelE(f_out)
+
+                    loss_class = loss_fn(prob_class,y_id.long())
+
+                    loss_deb = -torch.log(prob_subgroup)/prob_subgroup.shape[1]
+                    loss_deb = loss_deb.sum(axis=1).mean()
+
+                    loss = loss_class+10*loss_deb
+
+                    # Backpropagation
+                    optimizer_stage3.zero_grad()
+                    loss.backward()
+                    optimizer_stage3.step()
+
+            ## STAGE 4 ##
+
+            optimizer_stage2 = optim.Adam(modelE.parameters(), lr=1e-3)
+        #     print(f"STAGE 4")
+            for epoch in range(epochs_stage4):
+                modelM.eval()
+                modelE.eval()
+                size = len(test_dataloader.dataset)
+                test_loss, correct = 0, 0
+
+                scores = torch.zeros(0, 2)
+                ground_truth = torch.zeros(0)
+                with torch.no_grad():
+                    for X, y_id, y_subgroup in test_dataloader:
+                        if torch.cuda.is_available():
+                            X = X.cuda()
+                            y_subgroup = y_subgroup.cuda()
+                        prob = modelM(X.float())
+                        prob = modelE(prob)
+                        test_loss += loss_fn(prob,y_subgroup.long()).item()
+                        correct += (prob.argmax(1) == y_subgroup).type(torch.float).sum().item()
+                test_loss /= size
+                correct /= size
+        #         print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+
+                if correct > 0.9:
+                    break
+                for batch, (X, y_id, y_subgroup) in enumerate(train_dataloader):
+                    if torch.cuda.is_available():
+                        X = X.cuda()
+                        y_id = y_id.cuda()
+                        y_subgroup = y_subgroup.cuda()
+                    prob = modelM(X.float())
+                    prob = modelE(prob)
+                    loss = loss_fn(prob,y_subgroup.long())
+
+                    # Backpropagation
+                    optimizer_stage2.zero_grad()
+                    loss.backward()
+                    optimizer_stage2.step()
+
+        fair_scores = {}
+        ground_truth = {}
+        for dataset in ['cal', 'test']:
+            embeddings, ground_truth[dataset], subgroups_left, subgroups_right = self.collect_pair_embeddings(db_fold[dataset])
+            cos = nn.CosineSimilarity(dim=1, eps=1e-6)
+            modelM.eval()
+            modelM.cpu()
+            with torch.no_grad():
+                temp1 = modelM(embeddings['left'])
+                temp2 = modelM(embeddings['right'])
+            output = cos(temp1, temp2)
+            fair_scores[dataset] = output.numpy()
+
+        confidences = self.baseline(fair_scores, ground_truth, score_min=-1, score_max=1)
+
+        return fair_scores, confidences, modelM, modelC, modelE
+
+    def collect_embeddings_agenda(self, db_cal, embedding_data):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None, None, None
+
+    def collect_pair_embeddings(self, db_cal):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None, None, None, None
+
+    def baseline(self, fair_scores, ground_truth, score_min, score_max):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None
+
+
+class FtcApproach:
+    dataset = None
+    def ftc(self, db_fold):
+        r = self.collect_error_embeddings(db_fold['cal'])
+
+        error_embeddings = r[0]
+        ground_truth = r[1]
+        subgroups_left = r[2]
+        subgroups_right = r[3]
+        train_dataloader = DataLoader(
+            FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=True,
+            num_workers=0)
+        evaluate_train_dataloader = DataLoader(
+            FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=False,
+            num_workers=0)
+
+        r = self.collect_error_embeddings(db_fold['test'])
+
+        error_embeddings = r[0]
+        ground_truth = r[1]
+        subgroups_left = r[2]
+        subgroups_right = r[3]
+
+        evaluate_test_dataloader = DataLoader(
+            FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
+            batch_size=200,
+            shuffle=False,
+            num_workers=0)
+
+        # Initialize model
+        model = NeuralNetwork()
+        # Initialize the loss function
+        loss_fn = nn.CrossEntropyLoss()
+        # Initialize optimizer
+        optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
+        epochs = 50
+        for t in range(epochs):
+            print(f"Epoch {t + 1}\n-------------------------------")
+            train_loop(train_dataloader, model, loss_fn, optimizer, self.dataset)
+            _, _ = test_loop(evaluate_test_dataloader, model, loss_fn)
+        print("Done!")
+        scores_cal, ground_truth_cal = test_loop(evaluate_train_dataloader, model, loss_fn)
+        scores_cal = scores_cal[:, 1].numpy().reshape(-1)
+        assert sum(np.array(ground_truth_cal == 1) != np.array(db_fold['cal']['same'])) == 0
+
+        scores_test, ground_truth_test = test_loop(evaluate_test_dataloader, model, loss_fn)
+        scores_test = scores_test[:, 1].numpy().reshape(-1)
+        assert sum(np.array(ground_truth_test == 1) != np.array(db_fold['test']['same'])) == 0
+
+        fair_scores = {'cal': scores_cal, 'test': scores_test}
+        ground_truth = {'cal': ground_truth_cal, 'test': ground_truth_test}
+
+        confidences = self.baseline(fair_scores, ground_truth, score_min=-1, score_max=1)
+
+        return fair_scores, confidences, model
+
+    def baseline(self, fair_scores, ground_truth, score_min, score_max):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None
+
+    def collect_error_embeddings(self, db_cal):
+        """
+        Placeholder method to be overwritten.
+        """
+        return None, None, None, None
 
 
 class ApproachManager(AgendaApproach, FtcApproach):
@@ -95,44 +361,34 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 confidences['test'][att][select['test']] = calibration.predict(scores['test'][select['test']])
         return confidences
 
-    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data):
+    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data, seed=0):
         """
         This method contains the clustering and score calculations for the Faircal, FSN and Faircal-GMM.
 
         Faircal and FSN use k-means clustering, whilst Faircal-GMM used Gaussian mixtures of models.
         """
         # k-means algorithm
-        saveto = f"experiments/kmeans/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}.npy"
+        saveto = (
+            f"experiments/clustering_{self.approach}/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}"
+            ".npy"
+        )
         if os.path.exists(saveto):
             os.remove(saveto)
         prepare_dir(saveto)
         np.save(saveto, {})
         embeddings = self.collect_embeddings(db_fold['cal'], embedding_data)
 
-        cluster_method = None
-        gpu_bool = torch.cuda.is_available()
         if self.approach in ('faircal', 'fsn'):
-            if gpu_bool:
-                cluster_method = KMeans(num_clusters=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1))
-            else:
-                cluster_method = KMeans(num_clusters=self.n_cluster)
+            cluster_model = KMeans(self.n_cluster, init_params='kmeans', random_state=seed)
         elif self.approach == 'faircal-gmm':
-            if gpu_bool:
-                cluster_method = GaussianMixture(
-                    num_components=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1),
-                    covariance_type='full'
-                )
-            else:
-                cluster_method = GaussianMixture(num_components=self.n_cluster, covariance_type='full')
-
+            cluster_model = GaussianMixture(self.n_cluster, init_params='kmeans', random_state=seed)
         else:
-            raise ValueError(f"Approach {self.approach} does not map to a clustering algorithm!")
+            raise ValueError(f'Unrecognised approach: {self.approach}')
 
-        set_seed()
-        cluster_method.fit(embeddings.astype('float32'))
-        np.save(saveto, cluster_method)
+        cluster_model.fit(embeddings)
+        np.save(saveto, cluster_model)
 
-        r = self.collect_miscellania(self.n_cluster, cluster_method, db_fold, embedding_data)
+        r = self.collect_miscellania(self.n_cluster, cluster_model, db_fold, embedding_data)
 
         scores, ground_truth, clusters, cluster_scores = r[:4]
 
@@ -281,3 +537,193 @@ class ApproachManager(AgendaApproach, FtcApproach):
         Placeholder method to be overwritten
         """
         return {}, None, None, None
+
+
+class AgendaEmbeddingsDataset(Dataset):
+    """
+    Embeddings dataset for the Agenda approach.
+    """
+
+    def __init__(self, embeddings, id_embeddings, subgroup_embeddings):
+        """
+        Arguments
+        """
+        self.embeddings = embeddings
+        self.id_embeddings = id_embeddings
+        self.subgroup_embeddings = subgroup_embeddings
+
+    def __len__(self):
+        return len(self.embeddings)
+
+    def __getitem__(self, idx):
+        return self.embeddings[idx, :], self.id_embeddings[idx], self.subgroup_embeddings[idx]
+
+
+class NeuralNetworkM(nn.Module):
+    """
+    Fully connected NN for the Agenda approach.
+    """
+    def __init__(self):
+        super(NeuralNetworkM, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.PReLU(),
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+class NeuralNetworkC(nn.Module):
+    """
+    Fully connected NN for the Agenda approach.
+    """
+    def __init__(self,nClasses):
+        super(NeuralNetworkC, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(256, nClasses)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class NeuralNetworkE(nn.Module):
+    """
+    Fully connected NN for the Agenda approach.
+    """
+    def __init__(self,nClasses):
+        super(NeuralNetworkE, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.SELU(),
+            nn.Linear(128, nClasses),
+            nn.Sigmoid(),
+            nn.Softmax(dim=1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+
+class NeuralNetwork(nn.Module):
+    """
+    Fully connected NN for the Agenda approach.
+    """
+    def __init__(self):
+        super(NeuralNetwork, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(128*4, 256*4),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(256*4, 512*4),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(512*4, 512*4),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(512*4, 2),
+        )
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        logits = self.model(x)
+        prob = self.softmax(logits)
+        return logits, prob
+
+
+class FtcEmbeddingsDataset(Dataset):
+    """
+    Embeddings dataset for the FTC approach.
+    """
+
+    def __init__(self, error_embeddings, ground_truth, subgroups_left, subgroups_right):
+        """
+        Arguments
+        """
+        self.subgroups_left = subgroups_left
+        self.subgroups_right = subgroups_right
+        self.error_embeddings = error_embeddings
+        self.labels = torch.zeros(len(error_embeddings)).type(torch.LongTensor)
+        self.labels[ground_truth] = 1
+
+    def __len__(self):
+        return len(self.error_embeddings)
+
+    def __getitem__(self, idx):
+        return self.error_embeddings[idx, :], self.subgroups_left[idx], self.subgroups_right[idx], self.labels[idx]
+
+
+def fair_individual_loss(g1, g2, y, yhat, dataset_name):
+    """
+    Fair individual loss function used for the FTC approach.
+    """
+    if dataset_name == 'rfw':
+        subgroups = ['Asian', 'African', 'Caucasian', 'Indian']
+    elif 'bfw' in dataset_name:
+        subgroups = ['asian_females', 'asian_males', 'black_females', 'black_males', 'indian_females', 'indian_males',
+                     'white_females', 'white_males']
+    else:
+        subgroups = None
+    loss = 0
+    for i in subgroups:
+        for j in subgroups:
+            select_i = np.logical_and(np.array(g1) == i, np.array(g2) == i)
+            select_j = np.logical_and(np.array(g1) == j, np.array(g2) == j)
+            if (sum(select_i) > 0) and (sum(select_j) > 0):
+                select = y[select_i].reshape(-1, 1) == y[select_j]
+                aux = torch.cdist(yhat[select_i, :], yhat[select_j, :])[select].pow(2).sum()
+                loss += aux/(sum(select_i)*sum(select_j))
+    return loss
+
+
+def train_loop(dataloader, model, loss_fn, optimizer, dataset_name):
+    """
+    Training loop function used for the FTC approach.
+    """
+    if dataset_name == 'rfw':
+        batch_check = 50
+    elif 'bfw' in dataset_name:
+        batch_check = 500
+    model.cuda()
+    size = len(dataloader.dataset)
+    for batch, (X, g1, g2, y) in enumerate(dataloader):
+        if torch.cuda.is_available():
+            X = X.cuda()
+            y = y.cuda()
+        # Compute prediction and loss
+        pred, prob = model(X)
+        loss = 0.5*loss_fn(pred, y)+0.5*fair_individual_loss(g1, g2, y, pred, dataset_name)
+
+        # Backpropagation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if batch % batch_check == 0:
+            loss, current = loss.item(), batch * len(X)
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+    model.cpu()
+
+
+def test_loop(dataloader, model, loss_fn):
+    """
+    Testing loop function used for the FTC approach.
+    """
+    size = len(dataloader.dataset)
+    test_loss, correct = 0, 0
+
+    scores = torch.zeros(0, 2)
+    ground_truth = torch.zeros(0)
+    with torch.no_grad():
+        for X, g1, g2, y in dataloader:
+            pred, prob = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            scores = torch.cat((scores, prob))
+            ground_truth = torch.cat([ground_truth, y], 0)
+    test_loss /= size
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+    fpr, tpr, thr = roc_curve(ground_truth, scores[:, 1].numpy())
+    print('FNR @ 0.1 FPR %1.2f'% (1-tpr[np.argmin(np.abs(fpr-1e-3))]))
+    return scores, ground_truth
