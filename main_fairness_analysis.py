@@ -16,7 +16,8 @@ def fairness_analysis(datasets, features, approaches, calibration_methods, n_clu
     total_start = time.time()
     # Set the default number of clusters and fpr_thr_list
     if n_clusters is None:
-        n_clusters = [100]
+        n_clusters = [50]
+        print('Fifty clusters')
     if fpr_thr_list is None:
         fpr_thr_list = [1e-3]
     # Create an experiment manager dictionary
@@ -87,7 +88,7 @@ def argument_parsing_func():
     parser.add_argument(
         '--approaches', type=str, nargs='+',
         help='approaches to use separate using " "',
-        choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'gmm-discrete', 'oracle', 'all'],
+        choices=['baseline', 'faircal', 'fsn', 'agenda', 'ftc', 'faircal-gmm', 'oracle', 'all'],
         default='all')
 
     parser.add_argument(
@@ -101,11 +102,16 @@ def argument_parsing_func():
     return args
 
 def run_complete_analysis():
+    """
+    This function runs the complete fairness analysis under all settings.
+    """
     fairness_analysis(
-        datasets=['rfw', 'bfw'],
-        features='all',
-        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'gmm-discrete', 'oracle'],
-        approaches=['faircal'],
+        # datasets=['rfw', 'bfw'],
+        datasets=['bfw'],
+        # features='all',
+        features='arcface',
+        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
+        approaches=['faircal-gmm'],
         calibration_methods=['beta'],
     )
 

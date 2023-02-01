@@ -8,6 +8,10 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 class AgendaApproach:
+    """
+    The AgendaApproach class contains all of the methods that are specific to the Agenda approach.
+    """
+
     dataset = None
     def agenda(self, db_fold, embedding_data):
 

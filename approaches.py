@@ -25,6 +25,8 @@ class ApproachManager(AgendaApproach, FtcApproach):
     """
     Class that contains all the functionality relating to the different approaches.
 
+    It inherits from AgendaApproach and FtcApproach methods that are specific to the Agenda and FTC approach
+    respectively.
     """
     nbins = None
     dataset = None
@@ -40,16 +42,23 @@ class ApproachManager(AgendaApproach, FtcApproach):
         This method returns the calibration. Three different calibration methods are supported:
         binning, isotonic_regression and beta.
         """
+        # Extract if embedding in a dictionary
+        if isinstance(scores, np.ndarray):
+            score = scores
+            gt = ground_truth
+        else:
+            score = scores['cal']
+            gt = ground_truth['cal']
         if self.calibration_method == 'binning':
             calibration = BinningCalibration(
-                scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max, nbins=self.nbins
+                score, gt, score_min=score_min, score_max=score_max, nbins=self.nbins
             )
         elif self.calibration_method == 'isotonic_regression':
             calibration = IsotonicCalibration(
-                scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max
+                score, gt, score_min=score_min, score_max=score_max
             )
         elif self.calibration_method == 'beta':
-            calibration = BetaCalibration(scores['cal'], ground_truth['cal'], score_min=score_min, score_max=score_max)
+            calibration = BetaCalibration(score, gt, score_min=score_min, score_max=score_max)
         else:
             raise ValueError('Calibration method %s not available' % self.calibration_method)
         return calibration
@@ -87,6 +96,11 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return confidences
 
     def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data):
+        """
+        This method contains the clustering and score calculations for the Faircal, FSN and Faircal-GMM.
+
+        Faircal and FSN use k-means clustering, whilst Faircal-GMM used Gaussian mixtures of models.
+        """
         # k-means algorithm
         saveto = f"experiments/kmeans/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}.npy"
         if os.path.exists(saveto):
@@ -102,13 +116,14 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 cluster_method = KMeans(num_clusters=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1))
             else:
                 cluster_method = KMeans(num_clusters=self.n_cluster)
-        elif self.approach == 'gmm-discrete':
+        elif self.approach == 'faircal-gmm':
             if gpu_bool:
                 cluster_method = GaussianMixture(
-                    num_components=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1)
+                    num_components=self.n_cluster, trainer_params=dict(accelerator='gpu', devices=1),
+                    covariance_type='full'
                 )
             else:
-                cluster_method = GaussianMixture(num_components=self.n_cluster)
+                cluster_method = GaussianMixture(num_components=self.n_cluster, covariance_type='full')
 
         else:
             raise ValueError(f"Approach {self.approach} does not map to a clustering algorithm!")
@@ -197,10 +212,14 @@ class ApproachManager(AgendaApproach, FtcApproach):
     def get_metrics(
             self, embedding_data, db_fold, fold, scores, ground_truth, subgroup_scores
     ):
+        """
+        This method is to obtain the metrics for the different approaches:
+        ['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle']
+        """
         fair_scores = None
         if self.approach == 'baseline':
             confidences = self.baseline(scores, ground_truth)
-        elif self.approach in ('faircal', 'gmm-discrete'):
+        elif self.approach in ('faircal', 'faircal-gmm'):
             scores, ground_truth, confidences, fair_scores = self.cluster_methods(
                 fold,
                 db_fold,
@@ -244,6 +263,9 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return scores, ground_truth, confidences, fair_scores
 
     def find_threshold(self, scores, ground_truth, fpr_threshold):
+        """
+        This method is used to find the thresholds for the binary classification.
+        """
         far, tar, thresholds = roc_curve(ground_truth, scores, drop_intermediate=True)
         aux = np.abs(far - fpr_threshold)
         return np.min(thresholds[aux == np.min(aux)])

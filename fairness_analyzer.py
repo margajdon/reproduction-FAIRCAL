@@ -23,15 +23,15 @@ class MeasureCollector:
         This method is used to collect the fairness metrics according to the approaches.
         """
         # Determine whether the scores or fair_scores should be used.
-        if approach in ('baseline', 'faircal', 'agenda', 'gmm-discrete'):
+        if approach in ('baseline', 'faircal', 'faircal-gmm', 'oracle'):
             score_to_assess = scores['test']
-        elif approach in ('fsn', 'ftc', 'oracle'):
+        elif approach in ('fsn', 'ftc', 'agenda'):
             score_to_assess = fair_scores['test']
         else:
             raise ValueError('Approach %s not available.' % self.approach)
 
         # Determine whether the pre-calibration metrics should be derived.
-        if approach in ('baseline', 'fsn', 'ftc', 'agenda', 'gmm-discrete'):
+        if approach in ('baseline', 'fsn', 'ftc', 'agenda', 'faircal-gmm'):
             collect_measures_func = self.collect_measures_baseline_or_fsn_or_ftc
         elif approach in ('faircal', 'oracle'):
             collect_measures_func = self.collect_measures_bmc_or_oracle
