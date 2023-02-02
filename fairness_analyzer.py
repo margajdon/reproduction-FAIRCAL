@@ -84,6 +84,7 @@ class MeasureCollector:
         ece, ks, brier = compute_scores(confidences[select], ground_truth[select], self.nbins)
         return fpr, tpr, thresholds, ece, ks, brier
 
+
 class FairnessAnalyzer(ApproachManager, MeasureCollector):
     """
     This class contains the main functionality to perform the analysis of fairness.
