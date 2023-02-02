@@ -246,6 +246,8 @@ class FtcApproach:
             shuffle=False,
             num_workers=0)
 
+        set_seed()
+
         # Initialize model
         model = NeuralNetwork()
         # Initialize the loss function
