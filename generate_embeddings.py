@@ -88,7 +88,7 @@ def generate_one_embedding(dataset, model, incremental, batch_size=128):
 	time_taken = np.round(time.time() - start)
 
 	# Logging
-	print(f'generate_all_embeddings for {dataset} {model} took {time_taken}!')
+	print(f'generate_all_embeddings for {dataset} {model} took {time_taken} seconds!')
 
 
 class EmbeddingGenerator:
@@ -494,7 +494,7 @@ def generate_all_embeddings():
 		generate_one_embedding(dataset, model, incremental)
 	# Logging
 	time_taken = np.round(time.time() - very_start)
-	print(f'generate_all_embeddings took {time_taken} in total!')
+	print(f'generate_all_embeddings took {time_taken} seconds in total!')
 
 
 parser = argparse.ArgumentParser()

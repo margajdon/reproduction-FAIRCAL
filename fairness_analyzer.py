@@ -34,7 +34,7 @@ class MeasureCollector:
         if approach in ('baseline', 'fsn', 'ftc', 'agenda', 'faircal-gmm'):
             collect_measures_func = self.collect_measures_baseline_or_fsn_or_ftc
         elif approach in ('faircal', 'oracle'):
-            collect_measures_func = self.collect_measures_bmc_or_oracle
+            collect_measures_func = self.collect_measures_faircal_or_oracle
         else:
             raise ValueError('Approach %s not available.' % self.approach)
 
@@ -49,7 +49,7 @@ class MeasureCollector:
             ground_truth['test'], score_to_assess, confidences_to_assess, subgroup_scores['test'][att], subgroup
         )
 
-    def collect_measures_bmc_or_oracle(self, ground_truth, scores, confidences, subgroup_scores, subgroup):
+    def collect_measures_faircal_or_oracle(self, ground_truth, scores, confidences, subgroup_scores, subgroup):
         """
         This method derives the fairness metrics without pre-calibration measures.
         """

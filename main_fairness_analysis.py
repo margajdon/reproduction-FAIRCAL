@@ -41,8 +41,8 @@ def fairness_analysis(datasets, features, approaches, calibration_methods, n_clu
             experiment_output = experiment_runner.run_experiment()
             np.save(saveto, experiment_output)
             to_report = (dataset, feature, approach, calibration_method, n_cluster)
-            print(f'Analysis for {to_report} took {round(time.time() - start)}')
-    print(f'All experiments took {round(time.time() - total_start)} seconds')
+            print(f'Analysis for {to_report} took {round(time.time() - start)} seconds!')
+    print(f'All experiments took {round(time.time() - total_start)} seconds!')
 
 
 def assign_parameters(features, calibration_methods, approaches, all_features):
