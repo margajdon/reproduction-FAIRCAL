@@ -23,3 +23,4 @@ experiments_copy4/
 /embeddings_copy/facenet-webface_bfw_embeddings.pk
 /embeddings_copy/facenet-webface_rfw_embeddings.pk
 /embeddings_copy/facenet_rfw_embeddings.pk
+fact_environment_a.yml
