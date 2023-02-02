@@ -223,28 +223,20 @@ class FtcApproach:
         """
         Method that implements the FTC approach.
         """
-        r = self.collect_error_embeddings(db_fold['cal'])
-        error_embeddings = r[0]
-        ground_truth = r[1]
-        subgroups_left = r[2]
-        subgroups_right = r[3]
+        error_embeddings, ground_truth, subgroups_left, subgroups_right = self.collect_error_embeddings(db_fold['cal'])
         train_dataloader = DataLoader(
             FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
             batch_size=200,
             shuffle=True,
             num_workers=0)
+        # We note that this code could be improved by using a true validation set.
         evaluate_train_dataloader = DataLoader(
             FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
             batch_size=200,
             shuffle=False,
             num_workers=0)
 
-        r = self.collect_error_embeddings(db_fold['test'])
-
-        error_embeddings = r[0]
-        ground_truth = r[1]
-        subgroups_left = r[2]
-        subgroups_right = r[3]
+        error_embeddings, ground_truth, subgroups_left, subgroups_right = self.collect_error_embeddings(db_fold['test'])
 
         evaluate_test_dataloader = DataLoader(
             FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
