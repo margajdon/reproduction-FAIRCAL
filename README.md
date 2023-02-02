@@ -3,9 +3,12 @@
 Code for On the Reproducibility of "FairCal: Fairness Calibration for Face Verification". Based on the code for the paper FairCal: Fairness Calibration for Face Verification (https://github.com/tiagosalvador/faircal)
 
 ## Requirements
-TODO Ryan write this
 
-To install requirements:
+To create the conda environment to run the repo, first create the fact2023 conda environment:
+```
+conda env create -f fact_environment.yml
+```
+
 
 ```setup
 conda install --file requirements.txt
