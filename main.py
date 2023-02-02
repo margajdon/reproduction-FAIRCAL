@@ -267,7 +267,7 @@ def main():
     db = None
 
     args.calibration_methods = 'beta'
-    args.dataset = 'bfw'
+    # args.dataset = 'rfw'
 
     dataset = args.dataset
     if dataset == 'rfw':
@@ -296,7 +296,9 @@ def main():
     else:
         calibration_methods = [args.calibration_methods]
     # n_clusters =  [500, 250, 150, 100, 75, 50, 25, 20, 15, 10, 5, 1] #n_clusters = 100 was used in the tables on page 8
-    n_clusters =  [100] #n_clusters = 100 was used in the tables on page 8
+    n_clusters =  [1, 5, 10, 15, 20, 25, 50, 75, 100, 150, 250, 500] #n_clusters = 100 was used in the tables on page 8
+    
+    # n_clusters =  [100] #n_clusters = 100 was used in the tables on page 8
     fpr_thr_list = [1e-3]
     for n_cluster in n_clusters:
         for fpr_thr in fpr_thr_list:
@@ -345,10 +347,10 @@ def main():
                         
                         times[saveto] = time.perf_counter() - start
 
-    # with open("times_faircal.txt", "w") as f:
-    #     f.write("experiment,runtime\n")
-    #     for key,val in times.items():
-    #         f.write(f"{key},{val}\n")
+    with open("times_faircal.txt", "w") as f:
+        f.write("experiment,runtime\n")
+        for key,val in times.items():
+            f.write(f"{key},{val}\n")
 
 
 def collect_measures_bmc_or_oracle(ground_truth, scores, confidences, nbins, subgroup_scores, subgroup):

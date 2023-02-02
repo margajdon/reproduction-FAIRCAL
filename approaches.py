@@ -8,9 +8,9 @@ import pandas as pd
 pd.options.mode.chained_assignment = None
 
 # from sklearn.cluster import KMeans
-# from sklearn.mixture import GaussianMixture
+from sklearn.mixture import GaussianMixture
 from pycave.clustering import KMeans
-from pycave.bayes import GaussianMixture
+# from pycave.bayes import GaussianMixture
 from sklearn.metrics import roc_curve
 
 from calibration_methods import BinningCalibration
@@ -84,7 +84,7 @@ def cluster_methods(nbins, calibration_method, dataset_name, feature, fold, db_f
     if approach == 'faircal':
         cluster_method = KMeans(n_clusters)
     elif approach == 'gmm-discrete':
-        cluster_method = GaussianMixture(num_components=n_clusters, covariance_type='full')
+        cluster_method = GaussianMixture(n_clusters, covariance_type='full', verbose=2)
         # cluster_method = GaussianMixture(n_components=n_clusters, init_params="k-means++", verbose=2)
     else:
         raise ValueError(f"Clustering method {approach} not implemented!")
