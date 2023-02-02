@@ -160,7 +160,7 @@ class FairnessAnalyzer(ApproachManager, MeasureCollector):
 
     def get_summary_stats(self, ground_truth, scores, fair_scores, confidences, subgroup_scores):
         """
-        This method is used to obtain all the summary statistics that are used to assess the fairness of each methods.
+        This method is used to obtain all the summary statistics that are used to assess the fairness of each method.
         """
         fpr = {}
         tpr = {}

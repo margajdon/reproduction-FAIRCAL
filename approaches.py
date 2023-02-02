@@ -441,7 +441,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
             fair_scores_max = 1 - min(local_threshold - global_threshold)
             fair_scores_min = -1 - max(local_threshold - global_threshold)
 
-            confidences = self.baseline(
+            confidences = self.git baseline(
                 fair_scores,
                 ground_truth,
                 score_min=fair_scores_min,
