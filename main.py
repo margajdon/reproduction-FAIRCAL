@@ -347,7 +347,7 @@ def main():
                         
                         times[saveto] = time.perf_counter() - start
 
-    with open("times_faircal.txt", "w") as f:
+    with open("times_GMM.txt", "w") as f:
         f.write("experiment,runtime\n")
         for key,val in times.items():
             f.write(f"{key},{val}\n")
