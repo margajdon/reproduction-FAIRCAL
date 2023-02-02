@@ -229,7 +229,6 @@ class FtcApproach:
             batch_size=200,
             shuffle=True,
             num_workers=0)
-        # We note that this code could be improved by using a true validation set.
         evaluate_train_dataloader = DataLoader(
             FtcEmbeddingsDataset(error_embeddings, ground_truth, subgroups_left, subgroups_right),
             batch_size=200,
@@ -387,7 +386,6 @@ class ApproachManager(AgendaApproach, FtcApproach):
         else:
             raise ValueError(f'Unrecognised approach: {self.approach}')
 
-        cluster_model.fit(embeddings.astype('float32'))
         prepare_dir(saveto)
         np.save(saveto, cluster_model)
 
@@ -469,6 +467,11 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return scores, ground_truth, confidences, fair_scores
 
     def kmeans_clustering(self, embeddings):
+        """
+        This method instantiates and trains a kmeans model.
+
+        Used in the FTC and Faircal approach.
+        """
         set_seed()
         gpu_bool = torch.cuda.is_available()
         if gpu_bool:
@@ -480,6 +483,11 @@ class ApproachManager(AgendaApproach, FtcApproach):
         return cluster_method
 
     def gmm_clustering(self, embeddings, seed=0):
+        """
+        This method instantiates and trains a Gaussian mixture model.
+
+        Used in the Faircal-GMM approach.
+        """
         set_seed(seed)
         gpu_bool = torch.cuda.is_available()
         try:
@@ -495,7 +503,6 @@ class ApproachManager(AgendaApproach, FtcApproach):
             print(f'An exception occured: {e}')
             print('PyCave GMM failed. Defaulting back to sklearn GMM. This will take longer...')
             cluster_method = SkGaussianMixture(self.n_cluster, random_state=seed)
-
             cluster_method.fit(embeddings.astype('float32'))
 
         return cluster_method
