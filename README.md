@@ -16,10 +16,7 @@ Once the data has been obtained, it should only require the unzipping of the dat
 
 This repository was tested on Linux and OS. Windows users beware.
 
-Running this repository requires working conda base environment:
-```
-https://www.anaconda.com
-```
+Running this repository requires working conda base environment: https://www.anaconda.com
 
 To create the conda environment to run the repo, first create the fact2023 conda environment:
 ```

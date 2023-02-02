@@ -377,8 +377,7 @@ class FacenetEmbeddingGenerator(EmbeddingGenerator):
 		self.batch_size = batch_size
 		self.incremental = incremental
 		self.limit_images = limit_images
-		self.model = InceptionResnetV1(pretrained="vggface2").eval()
-
+		self.model = None
 
 	@staticmethod
 	def load_all_images(img_names):
@@ -450,12 +449,18 @@ class FacenetEmbeddingGenerator(EmbeddingGenerator):
 		The images are first stacked together. Then the embeddings are generated and added to a list on each batch pass.
 		Finally, the embeddings are stacked before being returned.
 		"""
+		if self.model is None:
+			self.model = self.get_model()
 		self.model.to(self.device)
 		embedding_list = []
 		for img_batch in tqdm(batch(imgs, self.batch_size), total=np.ceil(len(imgs)/self.batch_size)):
 			img_stack = torch.stack(img_batch)
 			embedding_list.append(self.model(img_stack.to(self.device)).cpu().detach().numpy())
 		return np.vstack(embedding_list)
+
+	@staticmethod
+	def get_model():
+		return InceptionResnetV1(pretrained="vggface2").eval()
 
 class WebfaceEmbeddingGenerator(FacenetEmbeddingGenerator):
 	"""
@@ -467,7 +472,10 @@ class WebfaceEmbeddingGenerator(FacenetEmbeddingGenerator):
 	def __init__(self, dataset, device, batch_size, incremental, limit_images):
 		super().__init__(dataset, device, batch_size, incremental, limit_images)
 		self.model_str = 'facenet-webface'
-		self.model = InceptionResnetV1(pretrained="casia-webface").eval()
+
+	@staticmethod
+	def get_model():
+		return InceptionResnetV1(pretrained="casia-webface").eval()
 
 
 def generate_all_embeddings():
