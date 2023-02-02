@@ -34,7 +34,7 @@ class MeasureCollector:
         if approach in ('baseline', 'fsn', 'ftc', 'agenda', 'faircal-gmm'):
             collect_measures_func = self.collect_measures_baseline_or_fsn_or_ftc
         elif approach in ('faircal', 'oracle'):
-            collect_measures_func = self.collect_measures_bmc_or_oracle
+            collect_measures_func = self.collect_measures_faircal_or_oracle
         else:
             raise ValueError('Approach %s not available.' % self.approach)
 
@@ -49,7 +49,7 @@ class MeasureCollector:
             ground_truth['test'], score_to_assess, confidences_to_assess, subgroup_scores['test'][att], subgroup
         )
 
-    def collect_measures_bmc_or_oracle(self, ground_truth, scores, confidences, subgroup_scores, subgroup):
+    def collect_measures_faircal_or_oracle(self, ground_truth, scores, confidences, subgroup_scores, subgroup):
         """
         This method derives the fairness metrics without pre-calibration measures.
         """
@@ -83,6 +83,7 @@ class MeasureCollector:
         thresholds['pre_calibration'] = r[2]
         ece, ks, brier = compute_scores(confidences[select], ground_truth[select], self.nbins)
         return fpr, tpr, thresholds, ece, ks, brier
+
 
 class FairnessAnalyzer(ApproachManager, MeasureCollector):
     """
@@ -159,7 +160,7 @@ class FairnessAnalyzer(ApproachManager, MeasureCollector):
 
     def get_summary_stats(self, ground_truth, scores, fair_scores, confidences, subgroup_scores):
         """
-        This method is used to obtain all the summary statistics that are used to assess the fairness of each methods.
+        This method is used to obtain all the summary statistics that are used to assess the fairness of each method.
         """
         fpr = {}
         tpr = {}

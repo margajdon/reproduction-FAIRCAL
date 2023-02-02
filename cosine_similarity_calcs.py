@@ -9,6 +9,10 @@ from generate_embeddings import save_outputs
 
 
 def cosine_calc(model_name, dataset):
+    """
+    This function derives a dataframe containing the image pairs with their cosine similarities for a given model_name
+    and dataset.
+    """
     if dataset == 'rfw':
         return rfw_cosine_calc(model_name)
     elif dataset == 'bfw':
@@ -18,6 +22,10 @@ def cosine_calc(model_name, dataset):
 
 
 def rfw_cosine_calc(model_name):
+    """
+    This function loads the RFW template dataset, maps the embeddings of the images and then calculates the
+    cosine similarities of the pairs, and returns a dataframe.
+    """
     # Load data rfw data
     rfw_df = CsvCreator.get_rfw_df()
 
@@ -55,6 +63,10 @@ def rfw_cosine_calc(model_name):
 
 
 def bfw_cosine_calc(model_name):
+    """
+    This function loads the BFW template dataset, maps the embeddings of the images and then calculates the
+    cosine similarities of the pairs, and returns a dataframe.
+    """
     # Load data bfw ddata
     bfw_df = pd.read_csv('./data/bfw/bfw.csv')
 
@@ -97,9 +109,17 @@ def bfw_cosine_calc(model_name):
 
 
 def cos_sim(a, b):
+    """
+    Function to calculate the cosine similarity between two vectors a and b.
+    """
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def derive_cosine_sim_for_all_sets():
+    """
+    Function that is used to derive the cosine similarities for the 4 combinations of (model, dataset).
+
+    The cosine similarity dataframe for each combination is generated then stored.
+    """
     very_start = time.time()
     task_list = [
         ('facenet-webface', 'bfw'),

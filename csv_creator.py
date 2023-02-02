@@ -4,12 +4,13 @@ import pandas as pd
 import pickle
 import time
 
+
 class CsvCreator:
     @staticmethod
     def extract_pairs_txt(file_path, group):
         """
-        This method uses the text files of the RFW dataset to create a template file with all of the different
-        images pairs and their respective features for a give group.
+        This method uses the text files of the RFW dataset to create a template file with all the different
+        images pairs and their respective features for a given group.
 
         The features created are the following:
         'id1': Folder/person id 1
@@ -27,7 +28,7 @@ class CsvCreator:
         df = pd.read_csv(file_path, header=None)[0].str.split('\t', expand=True)
         df.columns = ['id1', 'num1', 'id2', 'num2']
 
-        # cond is a mask that filters whether the pair belongs ot the same face
+        # cond is a condition mask that filters whether the pair belongs to the same face
         # 1: same/genuine face, 0: different/imposter face
         cond = df['num2'].isnull()
 
@@ -46,7 +47,7 @@ class CsvCreator:
     @staticmethod
     def get_rfw_df():
         """
-        This method creates a single dataframe with all of the groups using the extract_pairs_txt method.
+        This method creates a single dataframe with all the groups using the extract_pairs_txt method.
 
         More information about the features generated can be found in the extract_pairs_txt method.
         """
@@ -64,7 +65,6 @@ class CsvCreator:
                         df_list.append(CsvCreator.extract_pairs_txt(os.path.join(path, f), group))
 
         return pd.concat(df_list, ignore_index=True)
-
 
     @staticmethod
     def remove_misclassified_data(df):
@@ -95,7 +95,7 @@ class CsvCreator:
     @staticmethod
     def load_and_prep_bfw():
         """
-        This method reads the BFW csv dataeset and performs cleaning on the dataframe before returning it.
+        This method reads the BFW csv dataset and performs cleaning on the dataframe before returning it.
         """
         # bfw
         bfw = pd.read_csv('data/bfw/bfw.csv').drop(columns=['vgg16', 'resnet50', 'senet50'])
@@ -159,7 +159,7 @@ def create_similarity_data():
     For BFW, both facenet-webface and arcface embeddings are available. For RFW, both facenet and facenet-webface
     embeddings are available.
     For each combination, a unique key is created to identify the images in the pairs. The embedding is then mapped
-    to the image in each pairs. The cosine similarity is derived by comparing the embeddings of the pair. Finally,
+    to the image in each pair. The cosine similarity is derived by comparing the embeddings of the pair. Finally,
     two csvs with the cosine similarities is generated:
     - data/bfw/bfw_w_sims.csv
     - data/rfw/rfw_w_sims.csv
@@ -202,4 +202,4 @@ def create_similarity_data():
     # Print log
     print('Outputting the bfw and rfw csvs completed!')
     # Logging
-    print(f'create_similarity_data for took {round(time.time() - start)}!')
+    print(f'create_similarity_data took {round(time.time() - start)} seconds!')
