@@ -107,11 +107,8 @@ def run_complete_analysis():
     """
     fairness_analysis(
         datasets=['rfw', 'bfw'],
-        # datasets=['bfw'],
         features='all',
-        # features='arcface',
         approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
-        # approaches=['faircal-gmm'],
         calibration_methods=['beta'],
     )
 
