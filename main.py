@@ -261,6 +261,8 @@ def main():
     total_start = time.time()
     args = parser.parse_args()
     db = None
+    args.features = ['facenet-webface']
+    args.approaches = ['baseline']
 
     for dataset in args.dataset:
         if dataset == 'rfw':
