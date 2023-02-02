@@ -106,11 +106,12 @@ def run_complete_analysis():
     This function runs the complete fairness analysis under all settings.
     """
     fairness_analysis(
-        datasets=['rfw', 'bfw'],
-        # datasets=['bfw'],
-        features='all',
-        # features='arcface',
-        approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
+        # datasets=['rfw', 'bfw'],
+        datasets=['bfw'],
+        # features='all',
+        features='facenet-webface',
+        # approaches=['baseline', 'faircal', 'fsn', 'agenda', 'faircal-gmm', 'oracle'],
+        approaches=['baseline'],
         # approaches=['faircal-gmm'],
         calibration_methods=['beta'],
     )
