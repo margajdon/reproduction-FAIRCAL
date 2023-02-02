@@ -1,8 +1,9 @@
-## Bias Mitigation Through Calibration
+## On the Reproducibility of "FairCal: Fairness Calibration for Face Verification"
 
-Code for the paper Bias Mitigation Through Calibration. 
+Code for On the Reproducibility of "FairCal: Fairness Calibration for Face Verification". Based on the code for the paper FairCal: Fairness Calibration for Face Verification (https://github.com/tiagosalvador/faircal)
 
 ## Requirements
+TODO Ryan write this
 
 To install requirements:
 
@@ -10,28 +11,28 @@ To install requirements:
 conda install --file requirements.txt
 ```
 
-The code assumes that the embeddings from the pre-trained models and the pairs and cosine similarities for both the RFW and BFW are contained in the folder data. Due to the licenses of the datasets, these cannot be shared. The following functions will need to be updated depending on how the embeddings and the pairs are saved:
+## Preparing data
 
-- collect_embeddings_rfw, collect_embeddings_bfw, collect_miscellania_rfw, collect_miscellania_bfw in approaches.py
-- collect_error_embeddings_rfw, collect_error_embeddings_bfw in approaches_ftc
-- lines 208-213 in main.py
 
-The pre-trained models to generate the embeddings were obtained from the following repos:
+To run the experiments, the image embeddings, pairs and cosine similarities need to be generated. The full pipeline, including running all experiments, can be run using 
+```
+python run_all.py
+```
 
-- FaceNet (VGGFace2), FaceNet (Webface) - https://github.com/timesler/facenet-pytorch
-- Arcface - https://github.com/onnx/models/tree/master/vision/body_analysis/arcface
-
-These models have their own dependencies.
+Due to the licenses of the datasets, the embeddings, pairs and cosine similarities for both the RFW and BFW datasets cannot be shared
 
 ## Evaluating Methods
 
-To run the experiments, run the following commands
+To run all experiments, run the following command
+```
+python main_fairness_analysis.py
+```
 
-```train
-python main.py --dataset rfw --calibration_methods beta
-python main.py --dataset bfw --calibration_methods beta
+To run with specific datasets, features, approaches or calibration method, run
+```
+python main_fairness_analysis.py --datasets [datasets] --features [features] --approaches [approaches] --calibration_methods [calibration_methods] 
 ```
 
 ## Figures and Tables
 
-Figures 1 and 2 in the paper were generated with the Jupyter Notebook "Main Figures", while the remaining figures and tables with the Jupiter Notebook "NeurIPS Images and Tables".
+The notebooks that were used to generate the tables and figures used can be found in the notebooks folder. 
