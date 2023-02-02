@@ -4,14 +4,31 @@ Code for On the Reproducibility of "FairCal: Fairness Calibration for Face Verif
 
 ## Requirements
 
+This repository was tested on Linux and OS. Windows users beware.
+
+Running this repository requires working conda base environment:
+```
+https://www.anaconda.com
+```
+
 To create the conda environment to run the repo, first create the fact2023 conda environment:
 ```
 conda env create -f fact_environment.yml
 ```
+Activate the fact2023 environment: 
+```
+conda activate fact2023
+```
+Install the pip packages:
+```
+pip install mxnet
+pip install facenet-pytorch
+pip install pycave
+```
+Recommended for OS users:
 
-
-```setup
-conda install --file requirements.txt
+```
+conda install -c conda-forge nomkl
 ```
 
 ## Preparing data
