@@ -22,11 +22,11 @@ from utils import prepare_dir, set_seed
 
 experiments_folder = 'experiments/'
 
+
 class AgendaApproach:
     """
     The AgendaApproach class contains all the methods that are specific to the Agenda approach.
     """
-
     dataset = None
     def agenda(self, db_fold, embedding_data):
 
@@ -67,7 +67,11 @@ class AgendaApproach:
         modelM = NeuralNetworkM().cuda()
         modelC = NeuralNetworkC(n_id).cuda()
 
+        # Set the optimizer
         optimizer_stage1 = optim.Adam(list(modelM.parameters())+list(modelC.parameters()), lr=1e-3)
+        # Set the seed
+        set_seed()
+
         ## STAGE 1 ##
         print(f"STAGE 1")
         for epoch in tqdm(range(epochs_stage1)):
@@ -216,8 +220,10 @@ class AgendaApproach:
 class FtcApproach:
     dataset = None
     def ftc(self, db_fold):
+        """
+        Method that implements the FTC approach.
+        """
         r = self.collect_error_embeddings(db_fold['cal'])
-
         error_embeddings = r[0]
         ground_truth = r[1]
         subgroups_left = r[2]
@@ -254,7 +260,10 @@ class FtcApproach:
         loss_fn = nn.CrossEntropyLoss()
         # Initialize optimizer
         optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
+        # Set the number of epochs
         epochs = 50
+        # Set the seed
+        set_seed()
         for t in range(epochs):
             print(f"Epoch {t + 1}\n-------------------------------")
             train_loop(train_dataloader, model, loss_fn, optimizer, self.dataset)
@@ -714,6 +723,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, dataset_name):
     """
     Training loop function used for the FTC approach.
     """
+    set_seed()
     if dataset_name == 'rfw':
         batch_check = 50
     elif 'bfw' in dataset_name:

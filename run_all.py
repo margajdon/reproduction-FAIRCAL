@@ -19,7 +19,7 @@ def run_entire_pipeline():
     generate_all_embeddings()
     # Derive the cosine similarities
     derive_cosine_sim_for_all_sets()
-    # Reformate the similarity data to be used for the fairness analysis
+    # Reformat the similarity data to be used for the fairness analysis
     create_similarity_data()
     # Run the fairness analysis under all settings
     run_complete_analysis()
