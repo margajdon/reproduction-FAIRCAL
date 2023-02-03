@@ -12,6 +12,12 @@ One must fill out a form to obtain the BFW dataset and send an email request to 
 
 Once the data has been obtained, it should only require the unzipping of the data and place the necessary folders as described in `filestructure.txt`.
 
+## Pretrained models
+
+The pretrained models should be downloaded automatically (just once) and all necessary code to run them work out of the box. However, documentation can be found at:
+- Facenet models: https://github.com/timesler/facenet-pytorch
+- Arcface model: https://github.com/onnx/models/tree/main/vision/body_analysis/arcface
+
 ## Requirements
 
 This repository was tested on Linux and MacOS. Windows users beware.
