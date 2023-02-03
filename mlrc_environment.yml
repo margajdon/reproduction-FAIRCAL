@@ -1,4 +1,4 @@
-name: fact2023
+name: mlrc2022
 channels:
   - conda-forge
   - defaults

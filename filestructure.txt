@@ -1,7 +1,7 @@
 Volume
 +---data
 |   +---bfw
-|   |   \---bfw-crop-aligned
+|   |   \---bfw-cropped-aligned
 |   |       +---asian_females
 |   |       +---asian_males
 |   |       +---bfw
@@ -12,7 +12,14 @@ Volume
 |   |       +---white_females
 |   |       \---white_males
 |   \---rfw
-|       \---images
-|           \---test
-+---embeddings
+|       \---data
+|   |       +---African
+|   |       +---Asian
+|   |       +---Caucasian
+|   |       +---Indian
+|       \---txts
+|   |       +---African
+|   |       +---Asian
+|   |       +---Caucasian
+|   |       +---Indian
 \---notebooks

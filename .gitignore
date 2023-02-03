@@ -29,3 +29,8 @@ fact_environment_a.yml
 /experiments2.zip
 /experiments3.zip
 /times_GMM.txt
+/experiments_diag/
+/experiments_full_covariance/
+/experiments_full_covariance.zip
+/experiments_diag.zip
+/.~lock.README.md#
