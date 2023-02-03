@@ -46,7 +46,7 @@ To run the experiments, the image embeddings, pairs and cosine similarities need
 python run_all.py
 ```
 
-Due to the licenses of the datasets, the embeddings, pairs and cosine similarities for both the RFW and BFW datasets cannot be shared
+Due to the licenses of the datasets, the embeddings, pairs and cosine similarities for both the RFW and BFW datasets cannot be shared.
 
 ## Evaluating Methods
 
@@ -69,7 +69,7 @@ The notebooks that were used to generate the tables and figures used can be foun
 **run_all.py**: Contains an all-in-one function to create the data, run the experiments and save the outputs
 
 
-**fairness_analyser.py**: This is the main file where the fairness experiments occur after the generation of the embeddings. The two main classes in the file are RfwFairnessAnalyzer and BfwFairnessAnalyzer, which contain all the attributes and methods specific to each dataset. The common methods are inherited from the FairnessAnalyzer class.
+**fairness_analyzer.py**: This is the main file where the fairness experiments occur after the generation of the embeddings. The two main classes in the file are RfwFairnessAnalyzer and BfwFairnessAnalyzer, which contain all the attributes and methods specific to each dataset. The common methods are inherited from the FairnessAnalyzer class.
 
 **generate_embeddings.py**: Contains the FacenetEmbeddingGenerator, WebfaceEmbeddingGenerator and ArcfaceEmbeddingGenerator classes used to generate the embeddings from the image dataset using the Facenet, Facenet-Webface and Arcface model respectively
 
@@ -81,7 +81,7 @@ The notebooks that were used to generate the tables and figures used can be foun
 
 **calibration_methods.py**: Contains the calibration classes. In the original paper and the reproduction paper, the main focus was on the Beta calibration.
 
-**dependencies**: Folder than contains the dependencies for the Arcface model. Files are from: https://github.com/onnx/models/tree/main/vision/body_analysis/arcface
+**dependencies**: Folder that contains the dependencies for the Arcface model. Files are from: https://github.com/onnx/models/tree/main/vision/body_analysis/arcface
 
 
 
