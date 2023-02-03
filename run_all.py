@@ -1,7 +1,7 @@
 from cosine_similarity_calcs import derive_cosine_sim_for_all_sets
 from csv_creator import create_rfw_csv_template, create_similarity_data
+from fairness_analyzer import run_complete_analysis
 from generate_embeddings import generate_all_embeddings
-from main_fairness_analysis import run_complete_analysis
 
 
 def run_entire_pipeline():

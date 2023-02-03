@@ -68,11 +68,22 @@ The notebooks that were used to generate the tables and figures used can be foun
 
 **run_all.py**: Contains an all-in-one function to create the data, run the experiments and save the outputs
 
+
+**fairness_analyser.py**: This is the main file where the fairness experiments occur after the generation of the embeddings. The two main classes in the file are RfwFairnessAnalyzer and BfwFairnessAnalyzer, which contain all the attributes and methods specific to each dataset. The common methods are inherited from the FairnessAnalyzer class.
+
 **generate_embeddings.py**: Contains the FacenetEmbeddingGenerator, WebfaceEmbeddingGenerator and ArcfaceEmbeddingGenerator classes used to generate the embeddings from the image dataset using the Facenet, Facenet-Webface and Arcface model respectively
 
 **approaches.py**: The main class in this file is the ApproachManager which is used to run the different approaches (Baseline, FairCal, FSN, Agenda, FairCal-GMM, Oracle). The ApproachManager class inherits from AgendaApproach and FtcApproach methods that are specific to the Agenda and FTC approaches respectively.
 
+**cosine_similarity_cals.py**: Thie file contains the functions that load the template containing the image pairs and their metadata, maps the embeddings that were previously generated and derives cosine similarities.
+
 **csv_creator.py**: File used to generate csv templates and manage dataframes.
+
+**calibration_methods.py**: Contains the calibration classes. In the original paper and the reproduction paper, the main focus was on the Beta calibration.
+
+**dependencies**: Folder than contains the dependencies for the Arcface model. Files are from: https://github.com/onnx/models/tree/main/vision/body_analysis/arcface
+
+
 
 
 
