@@ -31,9 +31,9 @@ class MeasureCollector:
             raise ValueError('Approach %s not available.' % self.approach)
 
         # Determine whether the pre-calibration metrics should be derived.
-        if approach in ('baseline', 'fsn', 'ftc', 'agenda', 'faircal-gmm'):
+        if approach in ('baseline', 'fsn', 'ftc', 'agenda'):
             collect_measures_func = self.collect_measures_baseline_or_fsn_or_ftc
-        elif approach in ('faircal', 'oracle'):
+        elif approach in ('faircal', 'oracle', 'faircal-gmm'):
             collect_measures_func = self.collect_measures_faircal_or_oracle
         else:
             raise ValueError('Approach %s not available.' % self.approach)
