@@ -52,12 +52,12 @@ Due to the licenses of the datasets, the embeddings, pairs and cosine similariti
 
 To run all experiments, run the following command
 ```
-python main_fairness_analysis.py
+python fairness_analyzer.py
 ```
 
 To run with specific datasets, features, approaches or calibration method, run
 ```
-python main_fairness_analysis.py --datasets [datasets] --features [features] --approaches [approaches] --calibration_methods [calibration_methods] 
+python fairness_analyzer.py --datasets [datasets] --features [features] --approaches [approaches] --calibration_methods [calibration_methods] 
 ```
 
 ## Figures and Tables
