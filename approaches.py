@@ -373,10 +373,12 @@ class ApproachManager(AgendaApproach, FtcApproach):
             f"experiments/clustering_{self.approach}/{self.dataset}_{self.feature}_nclusters{self.n_cluster}_fold{fold}"
             ".npy"
         )
+
         if os.path.exists(saveto):
             os.remove(saveto)
         prepare_dir(saveto)
         np.save(saveto, {})
+
         embeddings = self.collect_embeddings(db_fold['cal'], embedding_data)
 
         cluster_model = None
@@ -391,8 +393,8 @@ class ApproachManager(AgendaApproach, FtcApproach):
             else:
                 raise ValueError(f'Unrecognised approach: {self.approach}')
 
-            prepare_dir(saveto)
-            np.save(saveto, cluster_model)
+        prepare_dir(saveto)
+        np.save(saveto, cluster_model)
 
         r = self.collect_miscellania(self.n_cluster, cluster_model, db_fold, embedding_data)
 
