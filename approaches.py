@@ -362,7 +362,7 @@ class ApproachManager(AgendaApproach, FtcApproach):
                 confidences['test'][att][select['test']] = calibration.predict(scores['test'][select['test']])
         return confidences
 
-    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data, seed=0):
+    def cluster_methods(self, fold, db_fold, score_normalization, fpr, embedding_data, seed=0, saved_clusters=None):
         """
         This method contains the clustering and score calculations for the Faircal, FSN and Faircal-GMM.
 
@@ -379,15 +379,20 @@ class ApproachManager(AgendaApproach, FtcApproach):
         np.save(saveto, {})
         embeddings = self.collect_embeddings(db_fold['cal'], embedding_data)
 
-        if self.approach in ('faircal', 'fsn'):
-            cluster_model = self.kmeans_clustering(embeddings)
-        elif self.approach == 'faircal-gmm':
-            cluster_model = self.gmm_clustering(embeddings)
+        cluster_model = None
+        if saved_clusters is not None:
+            cluster_model = saved_clusters
+            print('Warning: Using saved (user-input) clusters!')
         else:
-            raise ValueError(f'Unrecognised approach: {self.approach}')
+            if self.approach in ('faircal', 'fsn'):
+                cluster_model = self.kmeans_clustering(embeddings)
+            elif self.approach == 'faircal-gmm':
+                cluster_model = self.gmm_clustering(embeddings)
+            else:
+                raise ValueError(f'Unrecognised approach: {self.approach}')
 
-        prepare_dir(saveto)
-        np.save(saveto, cluster_model)
+            prepare_dir(saveto)
+            np.save(saveto, cluster_model)
 
         r = self.collect_miscellania(self.n_cluster, cluster_model, db_fold, embedding_data)
 
