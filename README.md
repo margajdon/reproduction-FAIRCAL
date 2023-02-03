@@ -52,7 +52,7 @@ To run the experiments, the image embeddings, pairs and cosine similarities need
 python run_all.py
 ```
 
-Due to the licenses of the datasets, the embeddings, pairs and cosine similarities for both the RFW and BFW datasets cannot be shared.
+Due to the dataset licensing, the embeddings, pairs and cosine similarities for both the RFW and BFW datasets cannot be shared.
 
 ## Evaluating Methods
 
@@ -68,7 +68,7 @@ python fairness_analyzer.py --datasets [datasets] --features [features] --approa
 
 ## Figures and Tables
 
-To generate the figures and tables in our report, we used the `.ipynb` notebooks in this repo. 
+Figures and tables were generated via notebooks, and can be executed after running all experiments.
 
 ## Notes about important files
 
