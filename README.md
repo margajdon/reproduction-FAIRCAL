@@ -1,4 +1,4 @@
-﻿## On the Reproducibility of "FairCal: Fairness Calibration for Face Verification"
+﻿# On the Reproducibility of "FairCal: Fairness Calibration for Face Verification"
 
 Code for On the Reproducibility of "FairCal: Fairness Calibration for Face Verification". Based on the code for the paper FairCal: Fairness Calibration for Face Verification (https://github.com/tiagosalvador/faircal)
 
@@ -10,15 +10,15 @@ Two data sources are used:
 
 One must fill out a form to obtain the BFW dataset and send an email request to obtain the RFW dataset.
 
-Once the data has been obtained, it should only require the unzipping of the data and place the necessary folders as described in the filestructure.txt.
+Once the data has been obtained, it should only require the unzipping of the data and place the necessary folders as described in `filestructure.txt`.
 
 ## Requirements
 
-This repository was tested on Linux and OS. Windows users beware.
+This repository was tested on Linux and MacOS. Windows users beware.
 
 Running this repository requires working conda base environment: https://www.anaconda.com
 
-To create the conda environment to run the repo, first create the fact2023 conda environment:
+To create the conda environment to run the repo, first create the mlrc2022 conda environment:
 ```
 conda env create -f mlrc_environment.yml
 ```
@@ -32,7 +32,7 @@ pip install mxnet
 pip install facenet-pytorch
 pip install pycave
 ```
-Recommended for OS users:
+Recommended for non-Intel users:
 
 ```
 conda install -c conda-forge nomkl
