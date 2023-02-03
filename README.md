@@ -68,7 +68,7 @@ python fairness_analyzer.py --datasets [datasets] --features [features] --approa
 
 ## Figures and Tables
 
-The notebooks that were used to generate the tables and figures used can be found in the notebooks folder. 
+To generate the figures and tables in our report, we used the `.ipynb` notebooks in this repo. 
 
 ## Notes about important files
 

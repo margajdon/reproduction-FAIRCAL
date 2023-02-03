@@ -1,6 +1,7 @@
 Volume
 +---data
 |   +---bfw
+        bfw.csv
 |   |   \---bfw-cropped-aligned
 |   |       +---asian_females
 |   |       +---asian_males
@@ -22,4 +23,3 @@ Volume
 |   |       +---Asian
 |   |       +---Caucasian
 |   |       +---Indian
-\---notebooks
