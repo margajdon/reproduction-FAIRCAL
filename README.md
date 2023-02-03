@@ -20,11 +20,11 @@ Running this repository requires working conda base environment: https://www.ana
 
 To create the conda environment to run the repo, first create the fact2023 conda environment:
 ```
-conda env create -f fact_environment.yml
+conda env create -f mlrc_environment.yml
 ```
-Activate the fact2023 environment: 
+Activate the mlrc2022 environment: 
 ```
-conda activate fact2023
+conda activate mlrc2022
 ```
 Install the pip packages:
 ```
